@@ -1,0 +1,457 @@
+{% extends 'base.html' %}
+{% load jformat %}
+
+{% block title %}ثبت حضور و غیاب{% endblock %}
+
+{% block content %}
+<h2>ثبت حضور و غیاب</h2>
+
+<form method="post" id="attendance-form">
+    {% csrf_token %}
+    
+    <div class="form-group">
+        <label for="date">تاریخ:</label>
+        <input type="text" id="date" value="{{ today|jformat:'%Y/%m/%d' }}" required readonly style="cursor: pointer; background: white;">
+        <input type="hidden" id="date-alt" name="date" value="{{ today|date:'Y-m-d' }}">
+    </div>
+    
+    {% if not is_teacher %}
+    <div class="form-group">
+        <label for="teacher_id">معلم:</label>
+        <select name="teacher_id" id="teacher_id" required>
+            <option value="">انتخاب معلم</option>
+            {% for teacher in teachers %}
+            <option value="{{ teacher.id }}" {% if selected_teacher_id == teacher.id|stringformat:"s" %}selected{% endif %}>
+                {{ teacher.first_name }} {{ teacher.last_name }}
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+    
+    <div class="form-group">
+        <label for="class_id">کلاس:</label>
+        <select name="class_id" id="class_id" required>
+            <option value="">{% if selected_teacher_id %}انتخاب کلاس{% else %}ابتدا معلم را انتخاب کنید{% endif %}</option>
+            {% for class_obj in classes %}
+            <option value="{{ class_obj.id }}" 
+                    data-teacher-id="{{ class_obj.teacher.id|default:'' }}"
+                    {% if selected_class_id == class_obj.id|stringformat:"s" %}selected{% endif %}>
+                {{ class_obj.grade }} {{ class_obj.name }}
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+    {% else %}
+    {% if user_teacher %}
+    <div class="form-group">
+        <label>معلم:</label>
+        <input type="text" value="{{ user_teacher.first_name }} {{ user_teacher.last_name }}" readonly style="background: #f5f5f5;">
+        <input type="hidden" name="teacher_id" value="{{ user_teacher.id }}">
+    </div>
+    
+    <div class="form-group">
+        <label for="class_id">کلاس:</label>
+        <select name="class_id" id="class_id" required {% if classes|length == 1 and selected_class_id %}disabled{% endif %}>
+            <option value="">انتخاب کلاس</option>
+            {% for class_obj in classes %}
+            <option value="{{ class_obj.id }}" {% if selected_class_id == class_obj.id|stringformat:"s" %}selected{% endif %}>
+                {{ class_obj.grade }} {{ class_obj.name }}
+            </option>
+            {% endfor %}
+        </select>
+        {% if classes|length == 1 and selected_class_id %}
+        <input type="hidden" name="class_id" value="{{ selected_class_id }}">
+        {% endif %}
+    </div>
+    {% endif %}
+    {% endif %}
+    
+    <div class="form-group">
+        <label for="student_id">دانش‌آموز:</label>
+        <select name="student_id" id="student_id" required>
+            <option value="">{% if is_teacher %}ابتدا کلاس را انتخاب کنید{% else %}ابتدا معلم و کلاس را انتخاب کنید{% endif %}</option>
+            {% for student in students %}
+            <option value="{{ student.id }}" 
+                    data-class-id="{{ student.class_room.id|default:'' }}"
+                    data-phone="{{ student.phone_number|default:'' }}"
+                    data-parent-phone="{{ student.parent.phone_number|default:'' }}">
+                {{ student.first_name }} {{ student.last_name }} - {{ student.student_id }}
+                {% if student.class_room %} ({{ student.class_room.grade }} {{ student.class_room.name }}){% endif %}
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+    
+    <div class="form-group">
+        <label for="student_phone" id="student_phone_label">شماره تلفن دانش‌آموز:</label>
+        <input type="text" name="student_phone" id="student_phone" placeholder="09123456789" maxlength="11" pattern="09\d{9}">
+        <small id="student_phone_help" style="color: #666; display: block; margin-top: 5px;">در صورت وجود، شماره تلفن دانش‌آموز نمایش داده می‌شود. می‌توانید آن را ویرایش یا وارد کنید.</small>
+    </div>
+    
+    <div class="form-group">
+        <label for="status">وضعیت:</label>
+        <select name="status" id="status" required>
+            {% for value, label in status_choices %}
+            <option value="{{ value }}" {% if value == 'absent' %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    
+    <div class="form-group">
+        <label for="notes">یادداشت (اختیاری):</label>
+        <textarea name="notes" id="notes" rows="3"></textarea>
+    </div>
+    
+    <button type="submit" class="btn" id="submit-btn" disabled>ثبت و ارسال پیامک</button>
+    <a href="{% url 'attendance:attendance_list' %}" class="btn">انصراف</a>
+</form>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var teacherSelect = document.getElementById('teacher_id');
+    var classSelect = document.getElementById('class_id');
+    var studentSelect = document.getElementById('student_id');
+    var studentPhoneInput = document.getElementById('student_phone');
+    var studentPhoneLabel = document.getElementById('student_phone_label');
+    var studentPhoneHelp = document.getElementById('student_phone_help');
+    var submitBtn = document.getElementById('submit-btn');
+    var dateInput = document.getElementById('date-alt');
+    var statusSelect = document.getElementById('status');
+    
+    // تابع برای بررسی اعتبار فرم و فعال/غیرفعال کردن دکمه
+    function checkFormValidity() {
+        var isValid = true;
+        
+        // بررسی تاریخ
+        if (!dateInput.value || dateInput.value.trim() === '') {
+            isValid = false;
+        }
+        
+        // بررسی معلم (فقط برای غیر معلم)
+        {% if not is_teacher %}
+        if (teacherSelect && (!teacherSelect.value || teacherSelect.value.trim() === '')) {
+            isValid = false;
+        }
+        {% endif %}
+        
+        // بررسی کلاس (از input hidden استفاده کن اگر select disabled باشد)
+        var classIdHidden = document.querySelector('input[name="class_id"][type="hidden"]');
+        var classIdValue = classIdHidden ? classIdHidden.value : classSelect.value;
+        if (!classIdValue || classIdValue.trim() === '') {
+            isValid = false;
+        }
+        
+        // بررسی دانش‌آموز
+        if (!studentSelect.value || studentSelect.value.trim() === '') {
+            isValid = false;
+        }
+        
+        // بررسی وضعیت
+        if (!statusSelect.value || statusSelect.value.trim() === '') {
+            isValid = false;
+        }
+        
+        // بررسی شماره تلفن (اگر اجباری باشد)
+        var selectedOption = studentSelect.options[studentSelect.selectedIndex];
+        var parentPhone = selectedOption && selectedOption.value ? selectedOption.getAttribute('data-parent-phone') : '';
+        var phoneValue = studentPhoneInput.value.trim();
+        
+        // اگر شماره تلفن اولیا وجود نداشت و شماره تلفن دانش‌آموز هم وارد نشده
+        if ((!parentPhone || parentPhone.trim() === '' || parentPhone === 'null' || parentPhone === 'None') && !phoneValue) {
+            isValid = false;
+        }
+        
+        // فعال/غیرفعال کردن دکمه
+        if (isValid) {
+            submitBtn.disabled = false;
+            submitBtn.style.opacity = '1';
+            submitBtn.style.cursor = 'pointer';
+        } else {
+            submitBtn.disabled = true;
+            submitBtn.style.opacity = '0.6';
+            submitBtn.style.cursor = 'not-allowed';
+        }
+        
+        return isValid;
+    }
+    
+    // استفاده از تقویم ساده
+    var datePicker = initPersianDatePicker('date', {
+        minYear: 1390,
+        maxYear: 1410,
+        onChange: function(gregorianDate) {
+            document.getElementById('date-alt').value = gregorianDate;
+            // بررسی اعتبار فرم بعد از تغییر تاریخ
+            checkFormValidity();
+        }
+    });
+    
+    // تنظیم مقدار اولیه
+    var initialDate = document.getElementById('date-alt').value;
+    if (initialDate) {
+        datePicker.setValue(initialDate);
+    }
+    
+    // ذخیره تمام دانش‌آموزان
+    var allStudents = Array.from(studentSelect.options).map(function(option) {
+        return {
+            value: option.value,
+            text: option.text,
+            classId: option.getAttribute('data-class-id'),
+            phone: option.getAttribute('data-phone'),
+            parentPhone: option.getAttribute('data-parent-phone')
+        };
+    });
+    
+    // فیلتر کردن دانش‌آموزان بر اساس کلاس
+    function filterStudents() {
+        // از input hidden استفاده کن اگر select disabled باشد
+        var classIdHidden = document.querySelector('input[name="class_id"][type="hidden"]');
+        var selectedClassId = classIdHidden ? classIdHidden.value : classSelect.value;
+        
+        // پاک کردن گزینه‌های فعلی (به جز اولین گزینه)
+        while (studentSelect.options.length > 1) {
+            studentSelect.remove(1);
+        }
+        
+        if (!selectedClassId) {
+            studentSelect.innerHTML = '<option value="">{% if is_teacher %}ابتدا کلاس را انتخاب کنید{% else %}ابتدا معلم و کلاس را انتخاب کنید{% endif %}</option>';
+            studentPhoneInput.value = '';
+            studentPhoneInput.required = false;
+            studentPhoneLabel.innerHTML = 'شماره تلفن دانش‌آموز:';
+            studentPhoneHelp.innerHTML = 'در صورت وجود، شماره تلفن دانش‌آموز نمایش داده می‌شود. می‌توانید آن را ویرایش یا وارد کنید.';
+            studentPhoneHelp.style.color = '#666';
+            checkFormValidity();
+            return;
+        }
+        
+        // اضافه کردن دانش‌آموزان مربوط به کلاس انتخاب شده
+        var hasStudents = false;
+        allStudents.forEach(function(student) {
+            if (student.value && student.classId === selectedClassId) {
+                var option = document.createElement('option');
+                option.value = student.value;
+                option.text = student.text;
+                option.setAttribute('data-class-id', student.classId);
+                option.setAttribute('data-phone', student.phone || '');
+                option.setAttribute('data-parent-phone', student.parentPhone || '');
+                studentSelect.appendChild(option);
+                hasStudents = true;
+            }
+        });
+        
+        if (!hasStudents) {
+            studentSelect.innerHTML = '<option value="">دانش‌آموزی برای این کلاس یافت نشد</option>';
+        }
+        
+        // ریست کردن فیلد شماره تلفن و label
+        studentPhoneInput.value = '';
+        studentPhoneInput.required = false;
+        studentPhoneLabel.innerHTML = 'شماره تلفن دانش‌آموز:';
+        studentPhoneHelp.innerHTML = 'در صورت وجود، شماره تلفن دانش‌آموز نمایش داده می‌شود. می‌توانید آن را ویرایش یا وارد کنید.';
+        studentPhoneHelp.style.color = '#666';
+        
+        // بررسی اعتبار فرم
+        checkFormValidity();
+    }
+    
+    // فیلتر کردن کلاس‌ها بر اساس معلم (فقط برای نقش‌های غیر معلم)
+    {% if not is_teacher %}
+    // ذخیره تمام کلاس‌ها
+    var allClasses = Array.from(classSelect.options).map(function(option) {
+        return {
+            value: option.value,
+            text: option.text,
+            teacherId: option.getAttribute('data-teacher-id')
+        };
+    });
+    
+    function filterClasses() {
+        var selectedTeacherId = teacherSelect.value;
+        
+        // پاک کردن گزینه‌های فعلی (به جز اولین گزینه)
+        while (classSelect.options.length > 1) {
+            classSelect.remove(1);
+        }
+        
+        if (!selectedTeacherId) {
+            classSelect.innerHTML = '<option value="">ابتدا معلم را انتخاب کنید</option>';
+            studentSelect.innerHTML = '<option value="">ابتدا معلم و کلاس را انتخاب کنید</option>';
+            studentPhoneInput.value = '';
+            studentPhoneInput.required = false;
+            studentPhoneLabel.innerHTML = 'شماره تلفن دانش‌آموز:';
+            studentPhoneHelp.innerHTML = 'در صورت وجود، شماره تلفن دانش‌آموز نمایش داده می‌شود. می‌توانید آن را ویرایش یا وارد کنید.';
+            studentPhoneHelp.style.color = '#666';
+            checkFormValidity();
+            return;
+        }
+        
+        // اضافه کردن کلاس‌های مربوط به معلم انتخاب شده
+        var hasClasses = false;
+        allClasses.forEach(function(classObj) {
+            if (classObj.value && classObj.teacherId === selectedTeacherId) {
+                var option = document.createElement('option');
+                option.value = classObj.value;
+                option.text = classObj.text;
+                option.setAttribute('data-teacher-id', classObj.teacherId);
+                classSelect.appendChild(option);
+                hasClasses = true;
+            }
+        });
+        
+        // اگر کلاسی اضافه نشد
+        if (!hasClasses) {
+            classSelect.innerHTML = '<option value="">کلاسی برای این معلم یافت نشد</option>';
+        }
+        
+        // پاک کردن دانش‌آموزان
+        studentSelect.innerHTML = '<option value="">ابتدا کلاس را انتخاب کنید</option>';
+        studentPhoneInput.value = '';
+        studentPhoneInput.required = false;
+        studentPhoneLabel.innerHTML = 'شماره تلفن دانش‌آموز:';
+        studentPhoneHelp.innerHTML = 'در صورت وجود، شماره تلفن دانش‌آموز نمایش داده می‌شود. می‌توانید آن را ویرایش یا وارد کنید.';
+        studentPhoneHelp.style.color = '#666';
+        
+        // بررسی اعتبار فرم
+        checkFormValidity();
+    }
+    
+    {% endif %}
+    
+    {% if not is_teacher %}
+    teacherSelect.addEventListener('change', function() {
+        filterClasses();
+        checkFormValidity();
+    });
+    {% endif %}
+    
+    // فقط اگر select disabled نیست، event listener اضافه کن
+    if (!classSelect.disabled) {
+        classSelect.addEventListener('change', function() {
+            filterStudents();
+            checkFormValidity();
+        });
+    }
+    
+    // تابع برای به‌روزرسانی label و required بر اساس شماره تلفن اولیا
+    function updatePhoneFieldRequirement(parentPhone, displayPhone) {
+        if (!parentPhone || parentPhone.trim() === '' || parentPhone === 'null' || parentPhone === 'None') {
+            // اگر شماره تلفن اولیا وجود نداشت، فیلد را اجباری کن
+            studentPhoneInput.required = true;
+            studentPhoneInput.setAttribute('required', 'required');
+            studentPhoneLabel.innerHTML = 'شماره تلفن دانش‌آموز <span style="color: red;">*</span>';
+            studentPhoneHelp.innerHTML = '<span style="color: red; font-weight: bold;">⚠️ شماره تلفن اولیا وجود ندارد. لطفاً شماره تلفن دانش‌آموز را وارد کنید.</span>';
+            studentPhoneHelp.style.color = '#dc3545';
+        } else {
+            // اگر شماره تلفن اولیا وجود داشت، فیلد اختیاری است
+            studentPhoneInput.required = false;
+            studentPhoneInput.removeAttribute('required');
+            
+            // اگر شماره تلفن اولیا در فیلد نمایش داده شده است
+            if (displayPhone && displayPhone === parentPhone) {
+                studentPhoneLabel.innerHTML = 'شماره تلفن (اولیا):';
+                studentPhoneHelp.innerHTML = 'شماره تلفن اولیا نمایش داده شده است. می‌توانید آن را ویرایش یا شماره تلفن دانش‌آموز را وارد کنید.';
+            } else {
+                studentPhoneLabel.innerHTML = 'شماره تلفن دانش‌آموز:';
+                studentPhoneHelp.innerHTML = 'در صورت وجود، شماره تلفن دانش‌آموز نمایش داده می‌شود. می‌توانید آن را ویرایش یا وارد کنید.';
+            }
+            studentPhoneHelp.style.color = '#666';
+        }
+    }
+    
+    // وقتی دانش‌آموز انتخاب شد، شماره تلفنش را نمایش بده
+    studentSelect.addEventListener('change', function() {
+        var selectedOption = studentSelect.options[studentSelect.selectedIndex];
+        if (selectedOption && selectedOption.value) {
+            var phone = selectedOption.getAttribute('data-phone') || '';
+            var parentPhone = selectedOption.getAttribute('data-parent-phone') || '';
+            
+            // اگر شماره تلفن اولیا وجود داشت، آن را نمایش بده، وگرنه شماره تلفن دانش‌آموز
+            var displayPhone = '';
+            if (parentPhone && parentPhone.trim() !== '' && parentPhone !== 'null' && parentPhone !== 'None') {
+                displayPhone = parentPhone;
+            } else if (phone && phone.trim() !== '' && phone !== 'null' && phone !== 'None') {
+                displayPhone = phone;
+            }
+            
+            studentPhoneInput.value = displayPhone;
+            
+            // به‌روزرسانی label و required
+            updatePhoneFieldRequirement(parentPhone, displayPhone);
+        } else {
+            studentPhoneInput.value = '';
+            studentPhoneInput.required = false;
+            studentPhoneInput.removeAttribute('required');
+            studentPhoneLabel.innerHTML = 'شماره تلفن دانش‌آموز:';
+            studentPhoneHelp.innerHTML = 'در صورت وجود، شماره تلفن دانش‌آموز نمایش داده می‌شود. می‌توانید آن را ویرایش یا وارد کنید.';
+            studentPhoneHelp.style.color = '#666';
+        }
+        
+        // بررسی اعتبار فرم
+        checkFormValidity();
+    });
+    
+    // event listener برای تغییر شماره تلفن
+    studentPhoneInput.addEventListener('input', checkFormValidity);
+    studentPhoneInput.addEventListener('change', checkFormValidity);
+    
+    // event listener برای تغییر وضعیت
+    statusSelect.addEventListener('change', checkFormValidity);
+    
+    // اگر معلم است و فقط یک کلاس دارد و کلاس انتخاب شده، به صورت خودکار دانش‌آموزان را نمایش بده
+    {% if is_teacher %}
+    {% if classes|length == 1 and selected_class_id %}
+    // اگر فقط یک کلاس وجود دارد و انتخاب شده، به صورت خودکار filterStudents را فراخوانی کن
+    if (classSelect.value && classSelect.value.trim() !== '') {
+        filterStudents();
+    }
+    {% endif %}
+    {% endif %}
+    
+    // بررسی اولیه اعتبار فرم
+    checkFormValidity();
+    
+    // قبل از ارسال فرم
+    document.querySelector('form').addEventListener('submit', function(e) {
+        if (!document.getElementById('date-alt').value) {
+            alert('لطفاً تاریخ را به درستی انتخاب کنید.');
+            e.preventDefault();
+            return false;
+        }
+        
+        if (!classSelect.value) {
+            alert('لطفاً کلاس را انتخاب کنید.');
+            e.preventDefault();
+            return false;
+        }
+        
+        if (!studentSelect.value) {
+            alert('لطفاً دانش‌آموز را انتخاب کنید.');
+            e.preventDefault();
+            return false;
+        }
+        
+        // اعتبارسنجی شماره تلفن
+        var phone = studentPhoneInput.value.trim();
+        var selectedOption = studentSelect.options[studentSelect.selectedIndex];
+        var parentPhone = selectedOption ? selectedOption.getAttribute('data-parent-phone') : '';
+        
+        // اگر شماره تلفن اولیا وجود نداشت و شماره تلفن دانش‌آموز هم وارد نشده
+        if ((!parentPhone || parentPhone.trim() === '') && !phone) {
+            alert('⚠️ شماره تلفن اولیا وجود ندارد. لطفاً شماره تلفن دانش‌آموز را وارد کنید.');
+            e.preventDefault();
+            studentPhoneInput.focus();
+            return false;
+        }
+        
+        // اعتبارسنجی فرمت شماره تلفن (اگر وارد شده)
+        if (phone && !/^09\d{9}$/.test(phone)) {
+            alert('شماره تلفن باید با فرمت 09123456789 باشد.');
+            e.preventDefault();
+            studentPhoneInput.focus();
+            return false;
+        }
+    });
+});
+</script>
+{% endblock %}

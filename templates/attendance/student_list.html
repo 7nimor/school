@@ -1,0 +1,144 @@
+{% extends 'base.html' %}
+
+{% block title %}لیست دانش‌آموزان{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;">
+    <h2 style="margin: 0;">لیست دانش‌آموزان</h2>
+    <a href="{% url 'attendance:export_students_excel' %}{% if search_query %}?search={{ search_query }}{% endif %}{% if class_filter %}{% if search_query %}&{% else %}?{% endif %}class={{ class_filter }}{% endif %}" class="btn" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">
+        <i class="fas fa-file-excel"></i> خروجی Excel
+    </a>
+</div>
+
+<div class="search-box">
+    <form method="get">
+        <select name="class" style="max-width: 200px; display: inline-block; margin-left: 10px;">
+            <option value="">همه کلاس‌ها</option>
+            {% for class in classes %}
+            <option value="{{ class.id }}" {% if class_filter == class.id|stringformat:"s" %}selected{% endif %}>
+                {{ class.grade }} {{ class.name }} - {{ class.teacher|default:"بدون معلم" }}
+            </option>
+            {% endfor %}
+        </select>
+        <input type="text" name="search" placeholder="جستجو (نام، نام خانوادگی، شماره دانش‌آموزی)..." value="{{ search_query }}" style="max-width: 300px; display: inline-block; margin-left: 10px;">
+        <button type="submit" class="btn">جستجو</button>
+        {% if search_query or class_filter %}
+        <a href="{% url 'attendance:student_list' %}" class="btn">پاک کردن فیلتر</a>
+        {% endif %}
+    </form>
+</div>
+
+<div class="table-wrapper">
+<table>
+    <thead>
+        <tr>
+            <th>شماره دانش‌آموزی</th>
+            <th>نام</th>
+            <th>نام خانوادگی</th>
+            <th>کلاس</th>
+            <th>معلم</th>
+            <th>اولیا/سرپرست</th>
+            <th>شماره تماس اولیا</th>
+            <th>وضعیت</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for student in students %}
+        <tr>
+            <td>{{ student.student_id }}</td>
+            <td>{{ student.first_name }}</td>
+            <td>{{ student.last_name }}</td>
+            <td>
+                {% if student.class_room %}
+                <span class="badge badge-late">{{ student.class_room.grade }} {{ student.class_room.name }}</span>
+                {% else %}
+                <span class="badge badge-absent">بدون کلاس</span>
+                {% endif %}
+            </td>
+            <td>
+                {% if student.class_room and student.class_room.teacher %}
+                {{ student.class_room.teacher.first_name }} {{ student.class_room.teacher.last_name }}
+                {% else %}
+                <span style="color: #999;">-</span>
+                {% endif %}
+            </td>
+            <td>{{ student.parent.first_name }} {{ student.parent.last_name }}</td>
+            <td>{{ student.parent.phone_number }}</td>
+            <td>
+                {% if student.is_active %}
+                <span class="badge badge-present">فعال</span>
+                {% else %}
+                <span class="badge badge-absent">غیرفعال</span>
+                {% endif %}
+            </td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="8" style="text-align: center; padding: 30px;">
+                دانش‌آموزی یافت نشد.
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+</div>
+
+{% if students.has_other_pages %}
+<div class="pagination" style="margin-top: 30px; text-align: center;">
+    <div style="display: inline-block; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); padding: 20px 30px; border-radius: 12px; box-shadow: 0 3px 10px rgba(0,0,0,0.1); border: 2px solid #dee2e6;">
+        {% if students.has_previous %}
+        <a href="?page={{ students.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if class_filter %}&class={{ class_filter }}{% endif %}" class="btn" style="margin: 0 5px; padding: 10px 20px;">
+            <i class="fas fa-chevron-right"></i> قبلی
+        </a>
+        {% else %}
+        <span class="btn" style="margin: 0 5px; padding: 10px 20px; opacity: 0.5; cursor: not-allowed; background: #ccc; color: #666;">
+            <i class="fas fa-chevron-right"></i> قبلی
+        </span>
+        {% endif %}
+        
+        <span style="margin: 0 20px; color: #1e3c72; font-weight: bold; font-size: 1.1em; padding: 10px 20px; background: white; border-radius: 8px; border: 2px solid #1e3c72;">
+            صفحه {{ students.number }} از {{ students.paginator.num_pages }}
+        </span>
+        
+        {% if students.has_next %}
+        <a href="?page={{ students.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if class_filter %}&class={{ class_filter }}{% endif %}" class="btn" style="margin: 0 5px; padding: 10px 20px;">
+            بعدی <i class="fas fa-chevron-left"></i>
+        </a>
+        {% else %}
+        <span class="btn" style="margin: 0 5px; padding: 10px 20px; opacity: 0.5; cursor: not-allowed; background: #ccc; color: #666;">
+            بعدی <i class="fas fa-chevron-left"></i>
+        </span>
+        {% endif %}
+    </div>
+    
+    {% if students.paginator.num_pages > 1 %}
+    <div style="margin-top: 15px;">
+        {% for page_num in students.paginator.page_range %}
+            {% if page_num == students.number %}
+            <span style="display: inline-block; margin: 0 3px; padding: 8px 12px; background: #1e3c72; color: white; border-radius: 5px; font-weight: bold;">{{ page_num }}</span>
+            {% elif page_num > students.number|add:'-3' and page_num < students.number|add:'3' %}
+            <a href="?page={{ page_num }}{% if search_query %}&search={{ search_query }}{% endif %}{% if class_filter %}&class={{ class_filter }}{% endif %}" style="display: inline-block; margin: 0 3px; padding: 8px 12px; background: white; color: #1e3c72; border: 2px solid #1e3c72; border-radius: 5px; text-decoration: none; transition: all 0.3s;">
+                {{ page_num }}
+            </a>
+            {% elif page_num == 1 or page_num == students.paginator.num_pages %}
+            <a href="?page={{ page_num }}{% if search_query %}&search={{ search_query }}{% endif %}{% if class_filter %}&class={{ class_filter }}{% endif %}" style="display: inline-block; margin: 0 3px; padding: 8px 12px; background: white; color: #1e3c72; border: 2px solid #1e3c72; border-radius: 5px; text-decoration: none;">
+                {{ page_num }}
+            </a>
+            {% elif page_num == students.number|add:'-4' or page_num == students.number|add:'4' %}
+            <span style="display: inline-block; margin: 0 3px; padding: 8px 12px; color: #666;">...</span>
+            {% endif %}
+        {% endfor %}
+    </div>
+    {% endif %}
+    
+    <div style="margin-top: 15px; color: #666; font-size: 0.95em; font-weight: 500;">
+        <i class="fas fa-info-circle"></i> نمایش {{ students.start_index }} تا {{ students.end_index }} از {{ students.paginator.count }} دانش‌آموز
+    </div>
+</div>
+{% else %}
+<div style="margin-top: 20px; text-align: center; color: #666; font-size: 0.95em;">
+    <i class="fas fa-info-circle"></i> نمایش {{ students.paginator.count }} دانش‌آموز
+</div>
+{% endif %}
+{% endblock %}
+

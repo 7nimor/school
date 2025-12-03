@@ -1,0 +1,111 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if user_obj %}ویرایش کاربر{% else %}افزودن کاربر جدید{% endif %}{% endblock %}
+
+{% block content %}
+<div class="form-container">
+    <h2>{% if user_obj %}ویرایش کاربر{% else %}افزودن کاربر جدید{% endif %}</h2>
+    
+    <form method="post" class="form">
+        {% csrf_token %}
+        
+        {% if user_obj %}
+        <div class="form-group">
+            <label for="username">نام کاربری:</label>
+            <input type="text" id="username" name="username" value="{{ user_obj.username }}" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="email">ایمیل:</label>
+            <input type="email" id="email" name="email" value="{{ user_obj.email|default:'' }}">
+        </div>
+        
+        <div class="form-group">
+            <label for="first_name">نام:</label>
+            <input type="text" id="first_name" name="first_name" value="{{ user_obj.first_name|default:'' }}">
+        </div>
+        
+        <div class="form-group">
+            <label for="last_name">نام خانوادگی:</label>
+            <input type="text" id="last_name" name="last_name" value="{{ user_obj.last_name|default:'' }}">
+        </div>
+        
+        <div class="form-group">
+            <label for="phone_number">شماره تلفن:</label>
+            <input type="text" id="phone_number" name="phone_number" value="{% if user_obj.profile.phone_number %}{{ user_obj.profile.phone_number }}{% endif %}" placeholder="09123456789" pattern="^09\d{9}$" maxlength="11">
+            <small style="color: #6c757d; display: block; margin-top: 5px;">فرمت: 09123456789</small>
+        </div>
+        
+        <div class="form-group">
+            <label for="role">نقش:</label>
+            <select id="role" name="role" required>
+                {% for role_value, role_label in role_choices %}
+                <option value="{{ role_value }}" {% if user_obj.profile.role == role_value %}selected{% endif %}>
+                    {{ role_label }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label style="display: flex; align-items: center; gap: 10px;">
+                <input type="checkbox" name="is_active" {% if user_obj.is_active %}checked{% endif %}>
+                <span>فعال</span>
+            </label>
+        </div>
+        {% else %}
+        <div class="form-group">
+            <label for="username">نام کاربری:</label>
+            <input type="text" id="username" name="username" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="password1">رمز عبور:</label>
+            <input type="password" id="password1" name="password1" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="password2">تکرار رمز عبور:</label>
+            <input type="password" id="password2" name="password2" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="first_name">نام:</label>
+            <input type="text" id="first_name" name="first_name" placeholder="نام">
+        </div>
+        
+        <div class="form-group">
+            <label for="last_name">نام خانوادگی:</label>
+            <input type="text" id="last_name" name="last_name" placeholder="نام خانوادگی">
+        </div>
+        
+        <div class="form-group">
+            <label for="phone_number">شماره تلفن:</label>
+            <input type="text" id="phone_number" name="phone_number" placeholder="09123456789" pattern="^09\d{9}$" maxlength="11">
+            <small style="color: #6c757d; display: block; margin-top: 5px;">فرمت: 09123456789</small>
+        </div>
+        
+        <div class="form-group">
+            <label for="role">نقش:</label>
+            <select id="role" name="role" required>
+                {% for role_value, role_label in role_choices %}
+                <option value="{{ role_value }}" {% if role_value == 'teacher' %}selected{% endif %}>
+                    {{ role_label }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
+        
+        <div class="form-group" style="display: flex; gap: 10px; margin-top: 20px;">
+            <button type="submit" class="btn" style="flex: 1;">
+                <i class="fas fa-save"></i> ذخیره
+            </button>
+            <a href="{% url 'attendance:user_list' %}" class="btn" style="background: #6c757d; flex: 1; text-align: center;">
+                <i class="fas fa-times"></i> انصراف
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}
+

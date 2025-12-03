@@ -1,0 +1,160 @@
+{% extends 'base.html' %}
+{% load jformat %}
+
+{% block title %}لیست حضور و غیاب{% endblock %}
+
+{% block content %}
+<h2>لیست حضور و غیاب</h2>
+
+<div class="search-box">
+    <form method="get" style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
+        <input type="text" id="date-filter" value="{% if date_filter_obj %}{{ date_filter_obj|jformat:'%Y/%m/%d' }}{% else %}{{ today|jformat:'%Y/%m/%d' }}{% endif %}" placeholder="تاریخ" style="max-width: 200px; cursor: pointer; background: white;" readonly>
+        <input type="hidden" name="date" id="date-filter-hidden" value="{% if date_filter %}{{ date_filter }}{% else %}{{ today_str }}{% endif %}">
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <select name="status" style="max-width: 200px;">
+                <option value="">همه وضعیت‌ها</option>
+                {% for value, label in status_choices %}
+                <option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+            <label style="display: flex; align-items: center; gap: 5px; white-space: nowrap;">
+                <input type="checkbox" name="absent_only" value="1" {% if absent_only %}checked{% endif %}>
+                فقط غایب‌ها
+            </label>
+        </div>
+        <button type="submit" class="btn">فیلتر</button>
+        <a href="{% url 'attendance:attendance_list' %}" class="btn">پاک کردن فیلتر</a>
+        <a href="{% url 'attendance:export_attendance_excel' %}?{% if date_filter %}date={{ date_filter }}&{% endif %}{% if status_filter %}status={{ status_filter }}&{% endif %}{% if absent_only %}absent_only=1{% endif %}" class="btn btn-success" style="background: #28a745;">
+            <i class="fas fa-file-excel"></i> خروجی Excel
+        </a>
+    </form>
+</div>
+
+<div class="table-wrapper">
+<table>
+    <thead>
+        <tr>
+            <th>تاریخ</th>
+            <th>دانش‌آموز</th>
+            <th>شماره دانش‌آموزی</th>
+            <th>کلاس</th>
+            <th>معلم</th>
+            <th>وضعیت</th>
+            <th>یادداشت</th>
+            <th>پیامک ارسال شده</th>
+            <th>عملیات</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for attendance in attendances %}
+        <tr>
+            <td>{{ attendance.date|jformat:"%Y/%m/%d" }}</td>
+            <td>{{ attendance.student.first_name }} {{ attendance.student.last_name }}</td>
+            <td>{{ attendance.student.student_id }}</td>
+            <td>
+                {% if attendance.student.class_room %}
+                <span class="badge badge-late">{{ attendance.student.class_room.grade }} {{ attendance.student.class_room.name }}</span>
+                {% else %}
+                <span class="badge badge-absent">بدون کلاس</span>
+                {% endif %}
+            </td>
+            <td>
+                {% if attendance.student.class_room and attendance.student.class_room.teacher %}
+                {{ attendance.student.class_room.teacher.first_name }} {{ attendance.student.class_room.teacher.last_name }}
+                {% else %}
+                <span style="color: #999;">-</span>
+                {% endif %}
+            </td>
+            <td>
+                {% if attendance.status == 'present' %}
+                <span class="badge badge-present">حاضر</span>
+                {% elif attendance.status == 'absent' %}
+                <span class="badge badge-absent">غایب</span>
+                {% elif attendance.status == 'excused' %}
+                <span class="badge badge-excused">غایب موجه</span>
+                {% elif attendance.status == 'late' %}
+                <span class="badge badge-late">تأخیر</span>
+                {% endif %}
+            </td>
+            <td>{{ attendance.notes|default:"-" }}</td>
+            <td>
+                {% if attendance.sms_sent %}
+                <span class="badge badge-success">✓ بله</span>
+                {% else %}
+                <span class="badge badge-absent">✗ خیر</span>
+                {% endif %}
+            </td>
+            <td>
+                {% if attendance.status == 'absent' and not attendance.sms_sent %}
+                <a href="{% url 'attendance:send_sms' attendance.id %}" class="btn btn-success">ارسال پیامک</a>
+                {% endif %}
+            </td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="9" style="text-align: center; padding: 30px;">
+                رکوردی یافت نشد.
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+</div>
+
+{% if attendances.has_other_pages %}
+<div class="pagination" style="margin-top: 30px; text-align: center;">
+    <div style="display: inline-block; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); padding: 20px 30px; border-radius: 12px; box-shadow: 0 3px 10px rgba(0,0,0,0.1); border: 2px solid #dee2e6;">
+        {% if attendances.has_previous %}
+        <a href="?page={{ attendances.previous_page_number }}{% if date_filter %}&date={{ date_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if absent_only %}&absent_only={{ absent_only }}{% endif %}" class="btn" style="margin: 0 5px; padding: 10px 20px;">
+            <i class="fas fa-chevron-right"></i> قبلی
+        </a>
+        {% else %}
+        <span class="btn" style="margin: 0 5px; padding: 10px 20px; opacity: 0.5; cursor: not-allowed; background: #ccc; color: #666;">
+            <i class="fas fa-chevron-right"></i> قبلی
+        </span>
+        {% endif %}
+        
+        <span style="margin: 0 20px; color: #1e3c72; font-weight: bold; font-size: 1.1em; padding: 10px 20px; background: white; border-radius: 8px; border: 2px solid #1e3c72;">
+            صفحه {{ attendances.number }} از {{ attendances.paginator.num_pages }}
+        </span>
+        
+        {% if attendances.has_next %}
+        <a href="?page={{ attendances.next_page_number }}{% if date_filter %}&date={{ date_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if absent_only %}&absent_only={{ absent_only }}{% endif %}" class="btn" style="margin: 0 5px; padding: 10px 20px;">
+            بعدی <i class="fas fa-chevron-left"></i>
+        </a>
+        {% else %}
+        <span class="btn" style="margin: 0 5px; padding: 10px 20px; opacity: 0.5; cursor: not-allowed; background: #ccc; color: #666;">
+            بعدی <i class="fas fa-chevron-left"></i>
+        </span>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // استفاده از تقویم ساده برای فیلتر
+    var dateFilterPicker = initPersianDatePicker('date-filter', {
+        minYear: 1390,
+        maxYear: 1410,
+        onChange: function(gregorianDate) {
+            document.getElementById('date-filter-hidden').value = gregorianDate;
+        }
+    });
+    
+    // تنظیم مقدار اولیه - اگر فیلتر خالی است، تاریخ امروز را تنظیم کن
+    var initialFilterDate = document.getElementById('date-filter-hidden').value;
+    if (initialFilterDate) {
+        dateFilterPicker.setValue(initialFilterDate);
+    } else {
+        // اگر فیلتر خالی است، تاریخ امروز را تنظیم کن
+        var todayDate = '{{ today_str }}';
+        if (todayDate) {
+            dateFilterPicker.setValue(todayDate);
+            document.getElementById('date-filter-hidden').value = todayDate;
+        }
+    }
+});
+</script>
+{% endblock %}
+

@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+
+{% block title %}حذف کاربر{% endblock %}
+
+{% block content %}
+<div class="form-container">
+    <h2>حذف کاربر</h2>
+    
+    <div style="background: #fff3cd; border: 1px solid #ffc107; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+        <p style="margin: 0; color: #856404;">
+            <i class="fas fa-exclamation-triangle"></i> آیا مطمئن هستید که می‌خواهید کاربر <strong>{{ user_obj.username }}</strong> را حذف کنید؟
+        </p>
+    </div>
+    
+    <div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+        <p><strong>نام کاربری:</strong> {{ user_obj.username }}</p>
+        <p><strong>نام:</strong> {{ user_obj.first_name|default:"-" }}</p>
+        <p><strong>نام خانوادگی:</strong> {{ user_obj.last_name|default:"-" }}</p>
+        <p><strong>ایمیل:</strong> {{ user_obj.email|default:"-" }}</p>
+        {% if user_obj.profile %}
+        <p><strong>شماره تلفن:</strong> {{ user_obj.profile.phone_number|default:"-" }}</p>
+        <p><strong>نقش:</strong> {{ user_obj.profile.get_role_display }}</p>
+        {% endif %}
+    </div>
+    
+    <form method="post" class="form">
+        {% csrf_token %}
+        <div class="form-group" style="display: flex; gap: 10px;">
+            <button type="submit" class="btn btn-danger" style="flex: 1;">
+                <i class="fas fa-trash"></i> بله، حذف کن
+            </button>
+            <a href="{% url 'attendance:user_list' %}" class="btn" style="background: #6c757d; flex: 1; text-align: center;">
+                <i class="fas fa-times"></i> انصراف
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
