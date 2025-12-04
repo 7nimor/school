@@ -1,0 +1,154 @@
+{% extends 'base.html' %}
+
+{% block title %}ویرایش دانش‌آموز{% endblock %}
+
+{% block content %}
+{% load jformat %}
+
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+    <h2 style="margin: 0;">ویرایش دانش‌آموز: {{ student.first_name }} {{ student.last_name }}</h2>
+    <a href="{% url 'attendance:student_list' %}" class="btn" style="background: #6c757d;">
+        <i class="fas fa-arrow-right"></i> بازگشت به لیست
+    </a>
+</div>
+
+{% if student.updated_by %}
+<div style="background: linear-gradient(135deg, #d1ecf1 0%, #bee5eb 100%); padding: 15px 20px; border-radius: 10px; margin-bottom: 20px; border: 2px solid #17a2b8; display: flex; align-items: center; gap: 15px;">
+    <i class="fas fa-info-circle" style="color: #17a2b8; font-size: 1.5em;"></i>
+    <div>
+        <strong style="color: #0c5460;">آخرین ویرایش:</strong>
+        <span style="color: #0c5460;">
+            توسط <strong>{{ student.updated_by.get_full_name|default:student.updated_by.username }}</strong>
+            در تاریخ <strong>{{ student.updated_at|jformat:'%Y/%m/%d' }}</strong>
+            ساعت <strong>{{ student.updated_at|time:'H:i' }}</strong>
+        </span>
+    </div>
+</div>
+{% endif %}
+
+<form method="post" style="max-width: 800px;">
+    {% csrf_token %}
+    
+    <!-- اطلاعات دانش‌آموز -->
+    <div style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); padding: 25px; border-radius: 12px; margin-bottom: 25px; border: 2px solid #dee2e6;">
+        <h3 style="margin-top: 0; margin-bottom: 20px; color: #1e3c72; border-bottom: 2px solid #1e3c72; padding-bottom: 10px;">
+            <i class="fas fa-user-graduate"></i> اطلاعات دانش‌آموز
+        </h3>
+        
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
+            <div class="form-group">
+                <label for="first_name">نام <span style="color: red;">*</span></label>
+                <input type="text" id="first_name" name="first_name" value="{{ student.first_name }}" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="last_name">نام خانوادگی <span style="color: red;">*</span></label>
+                <input type="text" id="last_name" name="last_name" value="{{ student.last_name }}" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="student_id">شماره دانش‌آموزی <span style="color: red;">*</span></label>
+                <input type="text" id="student_id" name="student_id" value="{{ student.student_id }}" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="class_id">کلاس</label>
+                {% if is_teacher %}
+                <input type="text" value="{% if student.class_room %}{{ student.class_room.grade }} {{ student.class_room.name }}{% else %}بدون کلاس{% endif %}" disabled style="background: #e9ecef; cursor: not-allowed;">
+                <small style="color: #856404; display: block; margin-top: 5px;"><i class="fas fa-info-circle"></i> معلم امکان تغییر کلاس دانش‌آموز را ندارد.</small>
+                {% else %}
+                <select id="class_id" name="class_id">
+                    <option value="">بدون کلاس</option>
+                    {% for class in classes %}
+                    <option value="{{ class.id }}" {% if student.class_room and student.class_room.id == class.id %}selected{% endif %}>
+                        {{ class.grade }} {{ class.name }}{% if class.teacher %} - {{ class.teacher.first_name }} {{ class.teacher.last_name }}{% endif %}
+                    </option>
+                    {% endfor %}
+                </select>
+                {% endif %}
+            </div>
+            
+            <div class="form-group">
+                <label for="phone_number">شماره تلفن دانش‌آموز</label>
+                <input type="text" id="phone_number" name="phone_number" value="{{ student.phone_number|default:'' }}" placeholder="09123456789" maxlength="11" pattern="09\d{9}">
+                <small style="color: #666;">اختیاری - فرمت: 09123456789</small>
+            </div>
+            
+            <div class="form-group">
+                <label for="is_active" style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                    <input type="checkbox" id="is_active" name="is_active" {% if student.is_active %}checked{% endif %} style="width: 20px; height: 20px;">
+                    <span>فعال</span>
+                </label>
+            </div>
+        </div>
+    </div>
+    
+    <!-- اطلاعات اولیا -->
+    <div style="background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%); padding: 25px; border-radius: 12px; margin-bottom: 25px; border: 2px solid #f39c12;">
+        <h3 style="margin-top: 0; margin-bottom: 20px; color: #856404; border-bottom: 2px solid #f39c12; padding-bottom: 10px;">
+            <i class="fas fa-users"></i> اطلاعات اولیا/سرپرست
+        </h3>
+        
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
+            <div class="form-group">
+                <label for="parent_first_name">نام اولیا <span style="color: red;">*</span></label>
+                <input type="text" id="parent_first_name" name="parent_first_name" value="{{ student.parent.first_name }}" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="parent_last_name">نام خانوادگی اولیا <span style="color: red;">*</span></label>
+                <input type="text" id="parent_last_name" name="parent_last_name" value="{{ student.parent.last_name }}" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="parent_phone">شماره تلفن اولیا <span style="color: red;">*</span></label>
+                <input type="text" id="parent_phone" name="parent_phone" value="{{ student.parent.phone_number }}" required placeholder="09123456789" maxlength="11" pattern="09\d{9}">
+                <small style="color: #666;">فرمت: 09123456789</small>
+            </div>
+        </div>
+    </div>
+    
+    <!-- دکمه‌ها -->
+    <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+        <button type="submit" class="btn" style="padding: 12px 30px; font-size: 1.1em;">
+            <i class="fas fa-save"></i> ذخیره تغییرات
+        </button>
+        <a href="{% url 'attendance:student_list' %}" class="btn" style="background: #6c757d; padding: 12px 30px; font-size: 1.1em;">
+            <i class="fas fa-times"></i> انصراف
+        </a>
+    </div>
+</form>
+
+<style>
+    .form-group {
+        margin-bottom: 0;
+    }
+    .form-group label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 600;
+        color: #333;
+    }
+    .form-group input[type="text"],
+    .form-group select {
+        width: 100%;
+        padding: 12px 15px;
+        border: 2px solid #dee2e6;
+        border-radius: 8px;
+        font-size: 1em;
+        transition: all 0.3s;
+    }
+    .form-group input[type="text"]:focus,
+    .form-group select:focus {
+        border-color: #1e3c72;
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(30, 60, 114, 0.1);
+    }
+    .form-group small {
+        display: block;
+        margin-top: 5px;
+        font-size: 0.85em;
+    }
+</style>
+{% endblock %}
+

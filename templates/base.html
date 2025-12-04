@@ -155,6 +155,52 @@
             box-shadow: 0 5px 15px rgba(30, 60, 114, 0.3);
         }
         
+        nav a.active {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            border-color: #1e3c72;
+            box-shadow: 0 3px 10px rgba(30, 60, 114, 0.3);
+        }
+        
+        .breadcrumb {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #dee2e6;
+            font-size: 0.95em;
+        }
+        
+        .breadcrumb a {
+            color: #1e3c72;
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+        
+        .breadcrumb a:hover {
+            color: #2a5298;
+            text-decoration: underline;
+        }
+        
+        .breadcrumb span {
+            color: #6c757d;
+            margin: 0 8px;
+        }
+        
+        .breadcrumb .current {
+            color: #1e3c72;
+            font-weight: bold;
+        }
+        
+        .nav-separator {
+            display: inline-block;
+            width: 2px;
+            height: 30px;
+            background: #dee2e6;
+            margin: 0 20px;
+            vertical-align: middle;
+        }
+        
         .user-info {
             color: #1e3c72;
             padding: 6px 12px;
@@ -165,6 +211,7 @@
             border: 1px solid #dee2e6;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
             display: inline-block;
+            margin-top: 15px;
         }
         
         .user-info i {
@@ -485,10 +532,28 @@
                 width: 100%;
             }
             
+            nav a.active {
+                background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+                color: white;
+            }
+            
+            .nav-separator {
+                display: none;
+            }
+            
             .user-info, .logout-btn {
                 width: 100%;
                 margin: 5px 0;
                 text-align: center;
+            }
+            
+            .user-info {
+                margin-right: 0;
+            }
+            
+            .breadcrumb {
+                padding: 12px 15px;
+                font-size: 0.9em;
             }
             
             table {
@@ -619,24 +684,49 @@
 <body>
     <div class="container">
         <header>
-            <div class="school-name">مدرسه شهید نیک نژاد</div>
+            {% if user.is_authenticated and user.profile %}
+            <div class="school-name">{{ user.profile.get_school_name }}</div>
+            {% endif %}
             <h1>سیستم مدیریت حضور و غیاب دانش‌آموزان</h1>
             <div class="header-subtitle">مدیریت هوشمند حضور و غیاب</div>
         </header>
         
         <nav>
-            <a href="{% url 'attendance:student_list' %}"><i class="fas fa-list"></i> لیست دانش‌آموزان</a>
-            <a href="{% url 'attendance:attendance_list' %}"><i class="fas fa-calendar-check"></i> حضور و غیاب</a>
-            <a href="{% url 'attendance:mark_attendance' %}"><i class="fas fa-plus-circle"></i> ثبت حضور و غیاب</a>
+            <a href="{% url 'attendance:student_list' %}" class="{% if request.resolver_match.url_name == 'student_list' or request.resolver_match.url_name == 'export_students_excel' %}active{% endif %}"><i class="fas fa-list"></i> لیست دانش‌آموزان</a>
+            <a href="{% url 'attendance:attendance_list' %}" class="{% if request.resolver_match.url_name == 'attendance_list' or request.resolver_match.url_name == 'export_attendance_excel' or request.resolver_match.url_name == 'send_sms' %}active{% endif %}"><i class="fas fa-calendar-check"></i> حضور و غیاب</a>
+            <a href="{% url 'attendance:mark_attendance' %}" class="{% if request.resolver_match.url_name == 'mark_attendance' %}active{% endif %}"><i class="fas fa-plus-circle"></i> ثبت حضور و غیاب</a>
             {% if user.is_authenticated and user.profile.is_admin %}
-            <a href="{% url 'attendance:user_list' %}"><i class="fas fa-users"></i> مدیریت کاربران</a>
-            <a href="/admin/"><i class="fas fa-cog"></i> پنل مدیریت</a>
+            <a href="{% url 'attendance:user_list' %}" class="{% if request.resolver_match.url_name == 'user_list' or request.resolver_match.url_name == 'user_create' or request.resolver_match.url_name == 'user_edit' or request.resolver_match.url_name == 'user_delete' %}active{% endif %}"><i class="fas fa-users"></i> مدیریت کاربران</a>
+            <a href="/admin/" class="{% if request.path|slice:':6' == '/admin' %}active{% endif %}"><i class="fas fa-cog"></i> پنل مدیریت</a>
+            <span class="nav-separator"></span>
             {% endif %}
             {% if user.is_authenticated %}
             <span class="user-info"><i class="fas fa-user"></i> {% if user.get_full_name %}{{ user.get_full_name }}{% else %}{{ user.username }}{% endif %}</span>
             <a href="{% url 'attendance:logout' %}" class="logout-btn"><i class="fas fa-sign-out-alt"></i> خروج</a>
             {% endif %}
         </nav>
+        
+        {% if user.is_authenticated %}
+        <div class="breadcrumb">
+            <a href="{% url 'attendance:student_list' %}"><i class="fas fa-home"></i> خانه</a>
+            {% if request.resolver_match.url_name == 'student_list' or request.resolver_match.url_name == 'export_students_excel' %}
+            <span>/</span>
+            <span class="current">لیست دانش‌آموزان</span>
+            {% elif request.resolver_match.url_name == 'attendance_list' or request.resolver_match.url_name == 'export_attendance_excel' or request.resolver_match.url_name == 'send_sms' %}
+            <span>/</span>
+            <span class="current">حضور و غیاب</span>
+            {% elif request.resolver_match.url_name == 'mark_attendance' %}
+            <span>/</span>
+            <span class="current">ثبت حضور و غیاب</span>
+            {% elif request.resolver_match.url_name == 'user_list' or request.resolver_match.url_name == 'user_create' or request.resolver_match.url_name == 'user_edit' or request.resolver_match.url_name == 'user_delete' %}
+            <span>/</span>
+            <span class="current">مدیریت کاربران</span>
+            {% elif request.path|slice:':6' == '/admin' %}
+            <span>/</span>
+            <span class="current">پنل مدیریت</span>
+            {% endif %}
+        </div>
+        {% endif %}
         
         {% if messages %}
         <div class="messages">

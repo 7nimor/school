@@ -15,6 +15,7 @@ urlpatterns = [
     path('logout/', views.logout_view, name='logout'),
     path('', home_redirect, name='home'),
     path('students/', views.student_list, name='student_list'),
+    path('students/<int:student_id>/edit/', views.student_edit, name='student_edit'),
     path('students/export/', views.export_students_excel_view, name='export_students_excel'),
     path('attendance/', views.attendance_list, name='attendance_list'),
     path('attendance/export/', views.export_attendance_excel_view, name='export_attendance_excel'),

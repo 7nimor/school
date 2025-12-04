@@ -43,6 +43,13 @@ class UserProfile(models.Model):
         related_name='user_profiles',
         verbose_name='معلم مرتبط'
     )
+    school_name = models.CharField(
+        max_length=200,
+        blank=True,
+        null=True,
+        verbose_name='نام مدرسه',
+        help_text='نام مدرسه برای نمایش در سیستم'
+    )
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='تاریخ ایجاد')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='تاریخ بروزرسانی')
     
@@ -66,6 +73,10 @@ class UserProfile(models.Model):
     def is_deputy(self):
         """بررسی اینکه آیا کاربر معاون است"""
         return self.role == 'deputy'
+    
+    def get_school_name(self):
+        """دریافت نام مدرسه یا نام پیش‌فرض"""
+        return self.school_name if self.school_name else 'سیستم مدیریت حضور و غیاب'
 
 
 class Teacher(models.Model):
@@ -177,6 +188,15 @@ class Student(models.Model):
     )
     is_active = models.BooleanField(default=True, verbose_name='فعال')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='تاریخ ایجاد')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='تاریخ آخرین ویرایش')
+    updated_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='updated_students',
+        verbose_name='آخرین ویرایش‌کننده'
+    )
 
     class Meta:
         verbose_name = 'دانش‌آموز'

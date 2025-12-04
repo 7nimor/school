@@ -39,7 +39,7 @@
             <th>معلم</th>
             <th>اولیا/سرپرست</th>
             <th>شماره تماس اولیا</th>
-            <th>وضعیت</th>
+            <th>عملیات</th>
         </tr>
     </thead>
     <tbody>
@@ -65,11 +65,9 @@
             <td>{{ student.parent.first_name }} {{ student.parent.last_name }}</td>
             <td>{{ student.parent.phone_number }}</td>
             <td>
-                {% if student.is_active %}
-                <span class="badge badge-present">فعال</span>
-                {% else %}
-                <span class="badge badge-absent">غیرفعال</span>
-                {% endif %}
+                <a href="{% url 'attendance:student_edit' student.id %}" class="btn" style="padding: 5px 12px; font-size: 0.85em; background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);">
+                    <i class="fas fa-edit"></i> ویرایش
+                </a>
             </td>
         </tr>
         {% empty %}

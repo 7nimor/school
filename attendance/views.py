@@ -16,12 +16,51 @@ from .excel import export_students_excel, export_attendance_excel
 
 def login_view(request):
     """صفحه لاگین"""
+    import random
+    
     if request.user.is_authenticated:
         return redirect('attendance:student_list')
     
+    # تولید کپچا
+    if 'captcha_answer' not in request.session:
+        num1 = random.randint(1, 10)
+        num2 = random.randint(1, 10)
+        request.session['captcha_answer'] = num1 + num2
+        request.session['captcha_question'] = f"{num1} + {num2}"
+    
     if request.method == 'POST':
+        # بررسی کپچا
+        user_captcha = request.POST.get('captcha', '').strip()
+        try:
+            user_captcha_int = int(user_captcha)
+            if user_captcha_int != request.session.get('captcha_answer'):
+                messages.error(request, 'پاسخ کپچا اشتباه است. لطفاً دوباره تلاش کنید.')
+                # تولید کپچای جدید
+                num1 = random.randint(1, 10)
+                num2 = random.randint(1, 10)
+                request.session['captcha_answer'] = num1 + num2
+                request.session['captcha_question'] = f"{num1} + {num2}"
+                form = AuthenticationForm()
+                return render(request, 'attendance/login.html', {
+                    'form': form,
+                    'captcha_question': request.session['captcha_question']
+                })
+        except ValueError:
+            messages.error(request, 'لطفاً یک عدد معتبر وارد کنید.')
+            form = AuthenticationForm()
+            return render(request, 'attendance/login.html', {
+                'form': form,
+                'captcha_question': request.session.get('captcha_question', '')
+            })
+        
         form = AuthenticationForm(request, data=request.POST)
         if form.is_valid():
+            # حذف کپچا از session بعد از لاگین موفق
+            if 'captcha_answer' in request.session:
+                del request.session['captcha_answer']
+            if 'captcha_question' in request.session:
+                del request.session['captcha_question']
+            
             user = form.get_user()
             login(request, user)
             # نمایش نام و نام خانوادگی یا username
@@ -37,7 +76,10 @@ def login_view(request):
     else:
         form = AuthenticationForm()
     
-    return render(request, 'attendance/login.html', {'form': form})
+    return render(request, 'attendance/login.html', {
+        'form': form,
+        'captcha_question': request.session.get('captcha_question', '')
+    })
 
 
 def logout_view(request):
@@ -52,8 +94,17 @@ def student_list(request):
     """لیست دانش‌آموزان"""
     from .models import Class
     
+    user_profile = request.user.profile
+    is_teacher = user_profile.is_teacher()
+    
     # مرتب‌سازی بر اساس جدیدترین (created_at نزولی)
-    students = Student.objects.filter(is_active=True).select_related('parent', 'class_room', 'class_room__teacher').order_by('-created_at')
+    students = Student.objects.filter(is_active=True).select_related('parent', 'class_room', 'class_room__teacher')
+    
+    # اگر کاربر معلم است، فقط دانش‌آموزان کلاس‌های خودش را نشان بده
+    if is_teacher and user_profile.teacher:
+        students = students.filter(class_room__teacher=user_profile.teacher)
+    
+    students = students.order_by('-created_at')
     
     # فیلتر بر اساس کلاس
     class_filter = request.GET.get('class', '')
@@ -80,7 +131,11 @@ def student_list(request):
     except EmptyPage:
         students_page = paginator.page(paginator.num_pages)
     
-    classes = Class.objects.filter(is_active=True).select_related('teacher')
+    # اگر کاربر معلم است، فقط کلاس‌های خودش را نشان بده
+    if is_teacher and user_profile.teacher:
+        classes = Class.objects.filter(teacher=user_profile.teacher, is_active=True).select_related('teacher')
+    else:
+        classes = Class.objects.filter(is_active=True).select_related('teacher')
     
     context = {
         'students': students_page,
@@ -97,16 +152,142 @@ def export_students_excel_view(request):
     class_filter = request.GET.get('class', '')
     search_query = request.GET.get('search', '')
     
+    # اگر کاربر معلم است، فقط دانش‌آموزان کلاس‌های خودش را نشان بده
+    user_profile = request.user.profile
+    if user_profile.is_teacher() and user_profile.teacher:
+        students_query = Student.objects.filter(class_room__teacher=user_profile.teacher)
+    else:
+        students_query = Student.objects.all()
+    
     return export_students_excel(
-        students_query=Student.objects.all(),
+        students_query=students_query,
         class_filter=class_filter,
         search_query=search_query
     )
 
 
+@login_required
+def student_edit(request, student_id):
+    """ویرایش دانش‌آموز"""
+    from .models import Class, Parent
+    
+    user_profile = request.user.profile
+    is_teacher = user_profile.is_teacher()
+    
+    student = get_object_or_404(Student, id=student_id)
+    
+    # اگر کاربر معلم است، فقط دانش‌آموزان کلاس‌های خودش را می‌تواند ویرایش کند
+    if is_teacher and user_profile.teacher:
+        if not student.class_room or student.class_room.teacher != user_profile.teacher:
+            messages.error(request, 'شما اجازه ویرایش این دانش‌آموز را ندارید.')
+            return redirect('attendance:student_list')
+    
+    classes = Class.objects.filter(is_active=True).order_by('grade', 'name')
+    
+    if request.method == 'POST':
+        # اطلاعات دانش‌آموز
+        first_name = request.POST.get('first_name', '').strip()
+        last_name = request.POST.get('last_name', '').strip()
+        student_id_field = request.POST.get('student_id', '').strip()
+        class_id = request.POST.get('class_id', '')
+        phone_number = request.POST.get('phone_number', '').strip()
+        is_active = request.POST.get('is_active') == 'on'
+        
+        # اطلاعات اولیا
+        parent_first_name = request.POST.get('parent_first_name', '').strip()
+        parent_last_name = request.POST.get('parent_last_name', '').strip()
+        parent_phone = request.POST.get('parent_phone', '').strip()
+        
+        # اعتبارسنجی
+        if not first_name or not last_name:
+            messages.error(request, 'نام و نام خانوادگی دانش‌آموز الزامی است.')
+            return redirect('attendance:student_edit', student_id=student.id)
+        
+        if not student_id_field:
+            messages.error(request, 'شماره دانش‌آموزی الزامی است.')
+            return redirect('attendance:student_edit', student_id=student.id)
+        
+        # بررسی تکراری نبودن شماره دانش‌آموزی
+        if student_id_field != student.student_id:
+            if Student.objects.filter(student_id=student_id_field).exists():
+                messages.error(request, 'این شماره دانش‌آموزی قبلاً استفاده شده است.')
+                return redirect('attendance:student_edit', student_id=student.id)
+        
+        # اعتبارسنجی شماره تلفن دانش‌آموز
+        if phone_number:
+            import re
+            if not re.match(r'^09\d{9}$', phone_number):
+                messages.error(request, 'شماره تلفن دانش‌آموز باید با فرمت 09123456789 باشد.')
+                return redirect('attendance:student_edit', student_id=student.id)
+        
+        # اعتبارسنجی اطلاعات اولیا
+        if not parent_first_name or not parent_last_name:
+            messages.error(request, 'نام و نام خانوادگی اولیا الزامی است.')
+            return redirect('attendance:student_edit', student_id=student.id)
+        
+        if not parent_phone:
+            messages.error(request, 'شماره تلفن اولیا الزامی است.')
+            return redirect('attendance:student_edit', student_id=student.id)
+        
+        import re
+        if not re.match(r'^09\d{9}$', parent_phone):
+            messages.error(request, 'شماره تلفن اولیا باید با فرمت 09123456789 باشد.')
+            return redirect('attendance:student_edit', student_id=student.id)
+        
+        # بررسی تکراری نبودن شماره تلفن اولیا
+        if parent_phone != student.parent.phone_number:
+            if Parent.objects.filter(phone_number=parent_phone).exists():
+                messages.error(request, 'این شماره تلفن اولیا قبلاً استفاده شده است.')
+                return redirect('attendance:student_edit', student_id=student.id)
+        
+        try:
+            # به‌روزرسانی اطلاعات اولیا
+            student.parent.first_name = parent_first_name
+            student.parent.last_name = parent_last_name
+            student.parent.phone_number = parent_phone
+            student.parent.save()
+            
+            # به‌روزرسانی اطلاعات دانش‌آموز
+            student.first_name = first_name
+            student.last_name = last_name
+            student.student_id = student_id_field
+            student.phone_number = phone_number if phone_number else None
+            student.is_active = is_active
+            student.updated_by = request.user  # ثبت کاربر ویرایش‌کننده
+            
+            # معلم نمی‌تواند کلاس دانش‌آموز را تغییر دهد
+            if not is_teacher:
+                if class_id:
+                    student.class_room = Class.objects.get(id=class_id)
+                else:
+                    student.class_room = None
+            
+            student.save()
+            
+            messages.success(request, f'اطلاعات دانش‌آموز {student.first_name} {student.last_name} با موفقیت به‌روزرسانی شد.')
+            return redirect('attendance:student_list')
+            
+        except Exception as e:
+            messages.error(request, f'خطا در به‌روزرسانی: {str(e)}')
+            return redirect('attendance:student_edit', student_id=student.id)
+    
+    context = {
+        'student': student,
+        'classes': classes,
+        'is_teacher': is_teacher,
+    }
+    return render(request, 'attendance/student_form.html', context)
+
+
+@login_required
 def attendance_list(request):
     """لیست حضور و غیاب"""
     attendances = Attendance.objects.select_related('student', 'student__parent', 'student__class_room', 'student__class_room__teacher').all()
+    
+    # اگر کاربر معلم است، فقط حضور و غیاب دانش‌آموزان کلاس‌های خودش را نشان بده
+    user_profile = request.user.profile
+    if user_profile.is_teacher() and user_profile.teacher:
+        attendances = attendances.filter(student__class_room__teacher=user_profile.teacher)
     
     # تاریخ امروز
     today = date.today()
@@ -175,8 +356,15 @@ def export_attendance_excel_view(request):
     status_filter = request.GET.get('status', '')
     absent_only = request.GET.get('absent_only', '') == '1'
     
+    # اگر کاربر معلم است، فقط حضور و غیاب دانش‌آموزان کلاس‌های خودش را نشان بده
+    user_profile = request.user.profile
+    if user_profile.is_teacher() and user_profile.teacher:
+        attendances_query = Attendance.objects.filter(student__class_room__teacher=user_profile.teacher)
+    else:
+        attendances_query = Attendance.objects.all()
+    
     return export_attendance_excel(
-        attendances_query=Attendance.objects.all(),
+        attendances_query=attendances_query,
         date_filter=date_filter_obj,
         status_filter=status_filter,
         absent_only=absent_only
@@ -192,15 +380,76 @@ def mark_attendance(request):
     is_teacher = user_profile.is_teacher()
     
     if request.method == 'POST':
-        date_str = request.POST.get('date')
+        persian_date_str = request.POST.get('persian_date', '').strip()
         student_id = request.POST.get('student_id')
         status = request.POST.get('status')
         notes = request.POST.get('notes', '')
         student_phone = request.POST.get('student_phone', '').strip()
         
+        # DEBUG: بررسی مقدار تاریخ دریافت شده
+        print(f"DEBUG - persian_date_str: '{persian_date_str}'")
+        
+        # تبدیل تاریخ شمسی به میلادی
+        def persian_to_gregorian(jy, jm, jd):
+            """تبدیل تاریخ شمسی به میلادی"""
+            jy += 1595
+            days = -355668 + (365 * jy) + (jy // 33) * 8 + ((jy % 33) + 3) // 4 + jd
+            if jm < 7:
+                days += (jm - 1) * 31
+            else:
+                days += ((jm - 7) * 30) + 186
+            gy = 400 * (days // 146097)
+            days %= 146097
+            if days > 36524:
+                days -= 1
+                gy += 100 * (days // 36524)
+                days %= 36524
+                if days >= 365:
+                    days += 1
+            gy += 4 * (days // 1461)
+            days %= 1461
+            if days > 365:
+                gy += (days - 1) // 365
+                days = (days - 1) % 365
+            gd = days + 1
+            sal_a = [0, 31, 28 if not ((gy % 4 == 0 and gy % 100 != 0) or (gy % 400 == 0)) else 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+            gm = 0
+            while gm < 13 and gd > sal_a[gm]:
+                gd -= sal_a[gm]
+                gm += 1
+            return gy, gm, gd
+        
         try:
+            # پارس کردن تاریخ شمسی (فرمت: 1403/09/14 یا 14 / آذر / 1403)
+            import re
+            # حذف فاصله‌ها و تبدیل به فرمت استاندارد
+            persian_date_clean = persian_date_str.replace(' ', '')
+            
+            # اگر فرمت عددی است (1403/09/14)
+            if re.match(r'^\d{4}/\d{1,2}/\d{1,2}$', persian_date_clean):
+                parts = persian_date_clean.split('/')
+                jy, jm, jd = int(parts[0]), int(parts[1]), int(parts[2])
+            # اگر فرمت با نام ماه است (14/آذر/1403)
+            else:
+                persian_months = {
+                    'فروردین': 1, 'اردیبهشت': 2, 'خرداد': 3, 'تیر': 4,
+                    'مرداد': 5, 'شهریور': 6, 'مهر': 7, 'آبان': 8,
+                    'آذر': 9, 'دی': 10, 'بهمن': 11, 'اسفند': 12
+                }
+                parts = persian_date_clean.split('/')
+                if len(parts) == 3:
+                    jd = int(parts[0])
+                    jm = persian_months.get(parts[1], 0)
+                    jy = int(parts[2])
+                else:
+                    raise ValueError(f"فرمت تاریخ نامعتبر: {persian_date_str}")
+            
+            # تبدیل به میلادی
+            gy, gm, gd = persian_to_gregorian(jy, jm, jd)
+            attendance_date = date(gy, gm, gd)
+            print(f"DEBUG - تاریخ میلادی: {attendance_date}")
+            
             student = Student.objects.select_related('parent').get(id=student_id, is_active=True)
-            attendance_date = timezone.datetime.strptime(date_str, '%Y-%m-%d').date()
             
             # بررسی اینکه آیا شماره تلفن اولیا وجود دارد یا نه
             parent_has_phone = student.parent and student.parent.phone_number
@@ -234,31 +483,17 @@ def mark_attendance(request):
                 attendance.notes = notes
                 attendance.save()
             
-            # اگر غایب است، پیامک ارسال کن
-            if status == Attendance.ABSENT and not attendance.sms_sent:
-                sms_sent_to_student = False
-                # اول سعی کن به شماره دانش‌آموز ارسال کن
-                if student.phone_number:
-                    from .services import send_sms
-                    message = (
-                        f"دانش‌آموز گرامی {student.first_name} {student.last_name}\n"
-                        f"شما در تاریخ {attendance.date.strftime('%Y/%m/%d')} غایب بوده‌اید.\n"
-                        f"مدرسه"
-                    )
-                    sms_success = send_sms(student.phone_number, message)
-                    if sms_success:
-                        attendance.sms_sent = True
-                        attendance.save(update_fields=['sms_sent'])
-                        sms_sent_to_student = True
-                        messages.success(request, f'حضور و غیاب ثبت شد و پیامک به شماره دانش‌آموز ارسال شد.')
+            # برای غیبت، تاخیر و غیبت موجه پیامک ارسال کن
+            if status in [Attendance.ABSENT, Attendance.EXCUSED, Attendance.LATE] and not attendance.sms_sent:
+                # دریافت نام مدرسه از پروفایل کاربر
+                school_name = user_profile.get_school_name() if hasattr(user_profile, 'get_school_name') else "مدرسه"
                 
-                # اگر به دانش‌آموز ارسال نشد، به اولیا ارسال کن
-                if not sms_sent_to_student:
-                    parent_sms_success = send_absence_sms(attendance)
-                    if parent_sms_success:
-                        messages.success(request, f'حضور و غیاب ثبت شد و پیامک به اولیا ارسال شد.')
-                    else:
-                        messages.success(request, 'حضور و غیاب ثبت شد. (خطا در ارسال پیامک)')
+                # ارسال پیامک به اولیا
+                parent_sms_success = send_absence_sms(attendance, school_name)
+                if parent_sms_success:
+                    messages.success(request, f'حضور و غیاب ثبت شد و پیامک به اولیا ارسال شد.')
+                else:
+                    messages.success(request, 'حضور و غیاب ثبت شد. (خطا در ارسال پیامک)')
             else:
                 messages.success(request, 'حضور و غیاب با موفقیت ثبت شد.')
             
@@ -266,9 +501,12 @@ def mark_attendance(request):
             
         except Student.DoesNotExist:
             messages.error(request, 'دانش‌آموز یافت نشد.')
-        except ValueError:
-            messages.error(request, 'تاریخ نامعتبر است.')
+        except ValueError as e:
+            print(f"DEBUG - ValueError: {e}")
+            print(f"DEBUG - persian_date_str was: '{persian_date_str}'")
+            messages.error(request, f'تاریخ نامعتبر است: {persian_date_str}')
         except Exception as e:
+            print(f"DEBUG - Exception: {e}")
             messages.error(request, f'خطا: {str(e)}')
     
     # نمایش فرم

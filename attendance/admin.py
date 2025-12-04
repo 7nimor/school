@@ -57,10 +57,11 @@ admin.site.register(User, CustomUserAdmin)
 @admin.register(UserProfile)
 class UserProfileAdmin(admin.ModelAdmin):
     """Admin برای پروفایل کاربر"""
-    list_display = ['user', 'role', 'phone_number', 'created_at']
+    list_display = ['user', 'role', 'school_name', 'phone_number', 'created_at']
     list_filter = ['role', 'created_at']
-    search_fields = ['user__username', 'user__email', 'phone_number']
+    search_fields = ['user__username', 'user__email', 'phone_number', 'school_name']
     readonly_fields = ['created_at', 'updated_at']
+    fields = ['user', 'role', 'school_name', 'phone_number', 'teacher', 'created_at', 'updated_at']
     
     def has_add_permission(self, request):
         """فقط مدیران می‌توانند پروفایل اضافه کنند"""

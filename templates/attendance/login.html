@@ -156,6 +156,19 @@
             border-color: #667eea;
         }
         
+        .captcha-group {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            border: 2px solid #dee2e6;
+        }
+        
+        .captcha-group label {
+            color: #1e3c72;
+            font-size: 1.1em;
+            font-weight: bold;
+        }
+        
         .btn {
             width: 100%;
             padding: 14px;
@@ -292,7 +305,6 @@
     <div class="login-wrapper">
     <div class="login-container">
         <div class="school-header">
-            <div class="school-name">مدرسه شهید نیک نژاد</div>
             <h1>ورود به سیستم</h1>
             <div class="header-subtitle">سیستم مدیریت حضور و غیاب دانش‌آموزان</div>
         </div>
@@ -332,6 +344,11 @@
                     {% endfor %}
                 </ul>
                 {% endif %}
+            </div>
+            
+            <div class="form-group captcha-group">
+                <label for="id_captcha">کپچا: <strong>{{ captcha_question }}</strong> = ؟</label>
+                <input type="text" name="captcha" id="id_captcha" required autocomplete="off" placeholder="جواب را وارد کنید" style="margin-top: 10px;">
             </div>
             
             {% if form.non_field_errors %}

@@ -11,8 +11,7 @@
     
     <div class="form-group">
         <label for="date">تاریخ:</label>
-        <input type="text" id="date" value="{{ today|jformat:'%Y/%m/%d' }}" required readonly style="cursor: pointer; background: white;">
-        <input type="hidden" id="date-alt" name="date" value="{{ today|date:'Y-m-d' }}">
+        <input type="text" id="date" name="persian_date" value="{{ today|jformat:'%Y/%m/%d' }}" required readonly style="cursor: pointer; background: white;">
     </div>
     
     {% if not is_teacher %}
@@ -115,7 +114,7 @@ document.addEventListener('DOMContentLoaded', function() {
     var studentPhoneLabel = document.getElementById('student_phone_label');
     var studentPhoneHelp = document.getElementById('student_phone_help');
     var submitBtn = document.getElementById('submit-btn');
-    var dateInput = document.getElementById('date-alt');
+    var dateInput = document.getElementById('date');
     var statusSelect = document.getElementById('status');
     
     // تابع برای بررسی اعتبار فرم و فعال/غیرفعال کردن دکمه
@@ -179,18 +178,11 @@ document.addEventListener('DOMContentLoaded', function() {
     var datePicker = initPersianDatePicker('date', {
         minYear: 1390,
         maxYear: 1410,
-        onChange: function(gregorianDate) {
-            document.getElementById('date-alt').value = gregorianDate;
+        onChange: function() {
             // بررسی اعتبار فرم بعد از تغییر تاریخ
             checkFormValidity();
         }
     });
-    
-    // تنظیم مقدار اولیه
-    var initialDate = document.getElementById('date-alt').value;
-    if (initialDate) {
-        datePicker.setValue(initialDate);
-    }
     
     // ذخیره تمام دانش‌آموزان
     var allStudents = Array.from(studentSelect.options).map(function(option) {
@@ -320,8 +312,13 @@ document.addEventListener('DOMContentLoaded', function() {
     
     {% if not is_teacher %}
     teacherSelect.addEventListener('change', function() {
-        filterClasses();
-        checkFormValidity();
+        // وقتی معلم تغییر می‌کند، صفحه را با پارامتر جدید بارگذاری کن
+        var selectedTeacherId = teacherSelect.value;
+        if (selectedTeacherId) {
+            window.location.href = '{% url "attendance:mark_attendance" %}?teacher_id=' + selectedTeacherId;
+        } else {
+            window.location.href = '{% url "attendance:mark_attendance" %}';
+        }
     });
     {% endif %}
     
@@ -413,7 +410,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // قبل از ارسال فرم
     document.querySelector('form').addEventListener('submit', function(e) {
-        if (!document.getElementById('date-alt').value) {
+        if (!dateInput.value || dateInput.value.trim() === '') {
             alert('لطفاً تاریخ را به درستی انتخاب کنید.');
             e.preventDefault();
             return false;
