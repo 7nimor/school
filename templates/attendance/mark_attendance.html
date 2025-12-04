@@ -102,12 +102,26 @@
     </div>
     
     <input type="hidden" name="force_send" id="force_send" value="0">
+    <input type="hidden" name="attendance_id" id="attendance_id" value="">
     
     <button type="submit" class="btn" id="submit-btn" disabled>ثبت و ارسال پیامک</button>
     <a href="{% url 'attendance:attendance_list' %}" class="btn">انصراف</a>
 </form>
 
 <script>
+// تبدیل اعداد فارسی/عربی به انگلیسی
+function convertPersianToEnglish(str) {
+    var persianNumbers = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
+    var arabicNumbers = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+    var englishNumbers = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+    
+    for (var i = 0; i < 10; i++) {
+        str = str.replace(new RegExp(persianNumbers[i], 'g'), englishNumbers[i]);
+        str = str.replace(new RegExp(arabicNumbers[i], 'g'), englishNumbers[i]);
+    }
+    return str;
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     var teacherSelect = document.getElementById('teacher_id');
     var classSelect = document.getElementById('class_id');
@@ -118,6 +132,11 @@ document.addEventListener('DOMContentLoaded', function() {
     var submitBtn = document.getElementById('submit-btn');
     var dateInput = document.getElementById('date');
     var statusSelect = document.getElementById('status');
+    
+    // تبدیل اعداد فارسی به انگلیسی در فیلد شماره تلفن
+    studentPhoneInput.addEventListener('input', function() {
+        this.value = convertPersianToEnglish(this.value);
+    });
     
     // تابع برای بررسی اعتبار فرم و فعال/غیرفعال کردن دکمه
     function checkFormValidity() {
@@ -413,6 +432,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // قبل از ارسال فرم
     var form = document.querySelector('form');
     var forceSendInput = document.getElementById('force_send');
+    var attendanceIdInput = document.getElementById('attendance_id');
     
     form.addEventListener('submit', function(e) {
         e.preventDefault();
@@ -510,8 +530,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     reverseButtons: true
                 }).then(function(result) {
                     if (result.isConfirmed) {
-                        // ارسال مجدد با force_send
+                        // ارسال مجدد با force_send و attendance_id
                         forceSendInput.value = '1';
+                        attendanceIdInput.value = data.attendance_id;
                         submitForm();
                     } else {
                         // فقط ثبت بدون ارسال پیامک

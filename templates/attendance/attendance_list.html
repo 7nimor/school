@@ -87,8 +87,10 @@
                 {% endif %}
             </td>
             <td>
-                {% if attendance.status == 'absent' and not attendance.sms_sent %}
+                {% if not attendance.sms_sent and attendance.status != 'present' %}
                 <a href="{% url 'attendance:send_sms' attendance.id %}" class="btn btn-success">ارسال پیامک</a>
+                {% elif attendance.sms_sent %}
+                <a href="{% url 'attendance:send_sms' attendance.id %}?resend=1" class="btn btn-warning btn-resend" data-id="{{ attendance.id }}">ارسال مجدد</a>
                 {% endif %}
             </td>
         </tr>
@@ -156,6 +158,29 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('date-filter-hidden').value = todayDate;
         }
     }
+});
+
+// تأیید ارسال مجدد پیامک
+document.querySelectorAll('.btn-resend').forEach(function(btn) {
+    btn.addEventListener('click', function(e) {
+        e.preventDefault();
+        var url = this.href;
+        
+        Swal.fire({
+            title: 'ارسال مجدد پیامک',
+            text: 'پیامک قبلاً برای این رکورد ارسال شده است. آیا می‌خواهید دوباره ارسال شود؟',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#28a745',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: '<i class="fas fa-paper-plane"></i> بله، ارسال شود',
+            cancelButtonText: '<i class="fas fa-times"></i> خیر'
+        }).then(function(result) {
+            if (result.isConfirmed) {
+                window.location.href = url;
+            }
+        });
+    });
 });
 </script>
 {% endblock %}

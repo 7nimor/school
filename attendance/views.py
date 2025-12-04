@@ -315,8 +315,8 @@ def attendance_list(request):
     if absent_only:
         attendances = attendances.filter(status=Attendance.ABSENT)
     
-    # مرتب‌سازی بر اساس id از آخری به اولی
-    attendances = attendances.order_by('-id')
+    # مرتب‌سازی بر اساس تاریخ و سپس id از آخری به اولی
+    attendances = attendances.order_by('-date', '-id')
     
     # Pagination
     paginator = Paginator(attendances, 20)  # 20 رکورد در هر صفحه
@@ -486,13 +486,22 @@ def mark_attendance(request):
             
             # برای غیبت، تاخیر و غیبت موجه پیامک ارسال کن
             force_send = request.POST.get('force_send', '') == '1'
+            attendance_id_resend = request.POST.get('attendance_id', '')
+            
+            # اگر attendance_id ارسال شده، از همان رکورد استفاده کن
+            if attendance_id_resend:
+                try:
+                    attendance = Attendance.objects.get(id=attendance_id_resend)
+                except Attendance.DoesNotExist:
+                    pass
             
             if status in [Attendance.ABSENT, Attendance.EXCUSED, Attendance.LATE]:
                 if attendance.sms_sent and not force_send:
                     # قبلاً پیامک ارسال شده، نیاز به تأیید کاربر
                     return JsonResponse({
                         'status': 'confirm_resend',
-                        'message': 'برای این دانش‌آموز قبلاً پیامک ارسال شده است. آیا می‌خواهید دوباره ارسال شود؟'
+                        'message': 'برای این دانش‌آموز قبلاً پیامک ارسال شده است. آیا می‌خواهید دوباره ارسال شود؟',
+                        'attendance_id': attendance.id
                     })
                 
                 # دریافت نام مدرسه از پروفایل کاربر
@@ -589,17 +598,27 @@ def mark_attendance(request):
 
 @login_required
 def send_sms_manually(request, attendance_id):
-    """ارسال دستی پیامک برای یک غیبت"""
+    """ارسال دستی پیامک برای غیبت، تاخیر یا غیبت موجه"""
     attendance = get_object_or_404(Attendance, id=attendance_id)
     
-    if attendance.status == Attendance.ABSENT:
-        success = send_absence_sms(attendance)
+    if attendance.status in [Attendance.ABSENT, Attendance.EXCUSED, Attendance.LATE]:
+        # دریافت نام مدرسه از پروفایل کاربر
+        user_profile = request.user.profile
+        school_name = user_profile.get_school_name() if hasattr(user_profile, 'get_school_name') else "مدرسه"
+        
+        # اگر resend است، ابتدا sms_sent را False کن
+        resend = request.GET.get('resend', '') == '1'
+        if resend and attendance.sms_sent:
+            attendance.sms_sent = False
+            attendance.save(update_fields=['sms_sent'])
+        
+        success = send_absence_sms(attendance, school_name)
         if success:
             messages.success(request, 'پیامک با موفقیت ارسال شد.')
         else:
             messages.error(request, 'خطا در ارسال پیامک.')
     else:
-        messages.warning(request, 'این رکورد غیبت نیست.')
+        messages.warning(request, 'این رکورد حضور است و نیازی به ارسال پیامک ندارد.')
     
     return redirect('attendance:attendance_list')
 
