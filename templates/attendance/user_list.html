@@ -3,17 +3,186 @@
 
 {% block title %}مدیریت کاربران{% endblock %}
 
+{% block extra_css %}
+<style>
+    /* کارت‌های موبایل */
+    .user-cards {
+        display: none;
+    }
+    
+    .user-card {
+        background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+        border-radius: 14px;
+        padding: 18px;
+        margin-bottom: 12px;
+        box-shadow: 0 3px 15px rgba(0,0,0,0.1);
+        border: 2px solid #e9ecef;
+    }
+    
+    .user-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 12px;
+        padding-bottom: 12px;
+        border-bottom: 2px solid #e9ecef;
+    }
+    
+    .user-card-name {
+        font-size: 1.15em;
+        font-weight: bold;
+        color: #1e3c72;
+    }
+    
+    .user-card-username {
+        font-size: 0.85em;
+        color: #6c757d;
+        margin-top: 3px;
+    }
+    
+    .user-card-role {
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-size: 0.8em;
+        font-weight: bold;
+    }
+    
+    .role-admin {
+        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        color: white;
+    }
+    
+    .role-teacher {
+        background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+        color: white;
+    }
+    
+    .role-deputy {
+        background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%);
+        color: #333;
+    }
+    
+    .user-card-body {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin-bottom: 15px;
+    }
+    
+    .user-card-item {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .user-card-item.full {
+        grid-column: 1 / -1;
+    }
+    
+    .user-card-label {
+        font-size: 0.75em;
+        color: #6c757d;
+        margin-bottom: 2px;
+    }
+    
+    .user-card-value {
+        font-size: 0.95em;
+        color: #333;
+        font-weight: 500;
+    }
+    
+    .user-card-actions {
+        display: flex;
+        gap: 10px;
+        padding-top: 12px;
+        border-top: 2px solid #e9ecef;
+    }
+    
+    .user-card-actions .btn {
+        flex: 1;
+        text-align: center;
+        padding: 12px 15px !important;
+        font-size: 0.9em !important;
+    }
+    
+    /* موبایل */
+    @media (max-width: 768px) {
+        .page-header {
+            flex-direction: column;
+            gap: 12px !important;
+        }
+        
+        .page-header h2 {
+            font-size: 1.2em !important;
+        }
+        
+        .page-header .btn {
+            width: 100%;
+            text-align: center;
+        }
+        
+        .mobile-filters {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .mobile-filters select,
+        .mobile-filters input {
+            width: 100% !important;
+            max-width: 100% !important;
+            padding: 12px !important;
+        }
+        
+        .mobile-btn-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        
+        .mobile-btn-row .btn {
+            text-align: center;
+            padding: 12px !important;
+        }
+        
+        .table-wrapper {
+            display: none !important;
+        }
+        
+        .user-cards {
+            display: block;
+        }
+        
+        .desktop-filters {
+            display: none !important;
+        }
+        
+        .pagination > div {
+            flex-wrap: wrap;
+            gap: 8px;
+            padding: 15px !important;
+        }
+    }
+    
+    @media (min-width: 769px) {
+        .mobile-filters {
+            display: none !important;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;">
-    <h2 style="margin: 0;">مدیریت کاربران</h2>
+<div class="page-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;">
+    <h2 style="margin: 0;"><i class="fas fa-users-cog"></i> مدیریت کاربران</h2>
     <a href="{% url 'attendance:user_create' %}" class="btn" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">
         <i class="fas fa-user-plus"></i> افزودن کاربر جدید
     </a>
 </div>
 
-<div class="search-box">
-    <form method="get">
-        <select name="role" style="max-width: 200px; display: inline-block; margin-left: 10px;">
+<!-- فیلترهای دسکتاپ -->
+<div class="search-box desktop-filters">
+    <form method="get" style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
+        <select name="role" style="max-width: 200px;">
             <option value="">همه نقش‌ها</option>
             {% for role_value, role_label in role_choices %}
             <option value="{{ role_value }}" {% if role_filter == role_value %}selected{% endif %}>
@@ -21,14 +190,40 @@
             </option>
             {% endfor %}
         </select>
-        <input type="text" name="search" placeholder="جستجو (نام کاربری، ایمیل، نام، نام خانوادگی، شماره تلفن)..." value="{{ search_query }}" style="max-width: 300px; display: inline-block; margin-left: 10px;">
+        <input type="text" name="search" placeholder="جستجو..." value="{{ search_query }}" style="max-width: 300px;">
         <button type="submit" class="btn">جستجو</button>
         {% if search_query or role_filter %}
-        <a href="{% url 'attendance:user_list' %}" class="btn">پاک کردن فیلتر</a>
+        <a href="{% url 'attendance:user_list' %}" class="btn" style="background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%);">پاک کردن فیلتر</a>
         {% endif %}
     </form>
 </div>
 
+<!-- فیلترهای موبایل -->
+<div class="search-box mobile-filters">
+    <form method="get">
+        <select name="role">
+            <option value="">همه نقش‌ها</option>
+            {% for role_value, role_label in role_choices %}
+            <option value="{{ role_value }}" {% if role_filter == role_value %}selected{% endif %}>
+                {{ role_label }}
+            </option>
+            {% endfor %}
+        </select>
+        <input type="text" name="search" placeholder="جستجو..." value="{{ search_query }}">
+        <div class="mobile-btn-row">
+            <button type="submit" class="btn">جستجو</button>
+            {% if search_query or role_filter %}
+            <a href="{% url 'attendance:user_list' %}" class="btn" style="background: #6c757d;">پاک</a>
+            {% else %}
+            <a href="{% url 'attendance:user_create' %}" class="btn" style="background: #28a745;">
+                <i class="fas fa-plus"></i> جدید
+            </a>
+            {% endif %}
+        </div>
+    </form>
+</div>
+
+<!-- جدول دسکتاپ -->
 <div class="table-wrapper">
 <table>
     <thead>
@@ -73,12 +268,12 @@
                 {% endif %}
             </td>
             <td>{{ user.date_joined|jformat:"%Y/%m/%d" }}</td>
-            <td>
-                <a href="{% url 'attendance:user_edit' user.id %}" class="btn" style="padding: 8px 15px; font-size: 14px; background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);">
+            <td style="white-space: nowrap;">
+                <a href="{% url 'attendance:user_edit' user.id %}" class="btn" style="padding: 8px 15px; font-size: 0.85em; background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);">
                     <i class="fas fa-edit"></i> ویرایش
                 </a>
                 {% if user != request.user %}
-                <a href="{% url 'attendance:user_delete' user.id %}" class="btn btn-danger" style="padding: 8px 15px; font-size: 14px;">
+                <a href="{% url 'attendance:user_delete' user.id %}" class="btn" style="padding: 8px 15px; font-size: 0.85em; background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);">
                     <i class="fas fa-trash"></i> حذف
                 </a>
                 {% endif %}
@@ -96,24 +291,98 @@
 </table>
 </div>
 
+<!-- کارت‌های موبایل -->
+<div class="user-cards">
+    {% for user in users %}
+    <div class="user-card">
+        <div class="user-card-header">
+            <div>
+                <div class="user-card-name">
+                    {% if user.first_name or user.last_name %}
+                    {{ user.first_name }} {{ user.last_name }}
+                    {% else %}
+                    {{ user.username }}
+                    {% endif %}
+                </div>
+                <div class="user-card-username">@{{ user.username }}</div>
+            </div>
+            {% if user.profile %}
+            <span class="user-card-role role-{{ user.profile.role }}">
+                {{ user.profile.get_role_display }}
+            </span>
+            {% endif %}
+        </div>
+        
+        <div class="user-card-body">
+            <div class="user-card-item">
+                <span class="user-card-label"><i class="fas fa-phone"></i> تلفن</span>
+                <span class="user-card-value" style="direction: ltr; text-align: right;">
+                    {{ user.profile.phone_number|default:"-" }}
+                </span>
+            </div>
+            <div class="user-card-item">
+                <span class="user-card-label"><i class="fas fa-toggle-on"></i> وضعیت</span>
+                <span class="user-card-value">
+                    {% if user.is_active %}
+                    <span style="color: #28a745;"><i class="fas fa-check-circle"></i> فعال</span>
+                    {% else %}
+                    <span style="color: #dc3545;"><i class="fas fa-times-circle"></i> غیرفعال</span>
+                    {% endif %}
+                </span>
+            </div>
+            {% if user.email %}
+            <div class="user-card-item full">
+                <span class="user-card-label"><i class="fas fa-envelope"></i> ایمیل</span>
+                <span class="user-card-value" style="direction: ltr; text-align: right;">{{ user.email }}</span>
+            </div>
+            {% endif %}
+            <div class="user-card-item">
+                <span class="user-card-label"><i class="fas fa-calendar"></i> عضویت</span>
+                <span class="user-card-value">{{ user.date_joined|jformat:"%Y/%m/%d" }}</span>
+            </div>
+        </div>
+        
+        <div class="user-card-actions">
+            <a href="{% url 'attendance:user_edit' user.id %}" class="btn" style="background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);">
+                <i class="fas fa-edit"></i> ویرایش
+            </a>
+            {% if user != request.user %}
+            <a href="{% url 'attendance:user_delete' user.id %}" class="btn" style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);">
+                <i class="fas fa-trash"></i> حذف
+            </a>
+            {% endif %}
+        </div>
+    </div>
+    {% empty %}
+    <div style="text-align: center; padding: 50px 20px; color: #666;">
+        <i class="fas fa-user-slash" style="font-size: 3em; margin-bottom: 15px; opacity: 0.4;"></i>
+        <p style="font-size: 1.1em;">کاربری یافت نشد.</p>
+    </div>
+    {% endfor %}
+</div>
+
 {% if users.has_other_pages %}
-<div class="pagination">
-    <div>
+<div style="margin-top: 20px;">
+    <div class="pagination-wrapper">
         {% if users.has_previous %}
-            <a href="?page=1{% if search_query %}&search={{ search_query }}{% endif %}{% if role_filter %}&role={{ role_filter }}{% endif %}" class="btn">اول</a>
-            <a href="?page={{ users.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if role_filter %}&role={{ role_filter }}{% endif %}" class="btn">قبلی</a>
+        <a href="?page={{ users.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if role_filter %}&role={{ role_filter }}{% endif %}" class="pagination-btn">
+            <i class="fas fa-chevron-right"></i> قبلی
+        </a>
+        {% else %}
+        <span class="pagination-btn disabled"><i class="fas fa-chevron-right"></i> قبلی</span>
         {% endif %}
         
-        <span class="btn" style="background: #6c757d; cursor: default;">
-            صفحه {{ users.number }} از {{ users.paginator.num_pages }}
-        </span>
+        <span class="pagination-current">{{ users.number }} / {{ users.paginator.num_pages }}</span>
         
         {% if users.has_next %}
-            <a href="?page={{ users.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if role_filter %}&role={{ role_filter }}{% endif %}" class="btn">بعدی</a>
-            <a href="?page={{ users.paginator.num_pages }}{% if search_query %}&search={{ search_query }}{% endif %}{% if role_filter %}&role={{ role_filter }}{% endif %}" class="btn">آخر</a>
+        <a href="?page={{ users.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if role_filter %}&role={{ role_filter }}{% endif %}" class="pagination-btn">
+            بعدی <i class="fas fa-chevron-left"></i>
+        </a>
+        {% else %}
+        <span class="pagination-btn disabled">بعدی <i class="fas fa-chevron-left"></i></span>
         {% endif %}
     </div>
+    <div class="pagination-info">{{ users.start_index }}-{{ users.end_index }} از {{ users.paginator.count }} کاربر</div>
 </div>
 {% endif %}
 {% endblock %}
-

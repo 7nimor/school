@@ -3,33 +3,235 @@
 
 {% block title %}لیست حضور و غیاب{% endblock %}
 
-{% block content %}
-<h2>لیست حضور و غیاب</h2>
+{% block extra_css %}
+<style>
+    /* کارت‌های موبایل */
+    .attendance-cards-mobile {
+        display: none;
+    }
+    
+    .att-card {
+        background: white;
+        border-radius: 14px;
+        padding: 16px;
+        margin-bottom: 12px;
+        box-shadow: 0 3px 12px rgba(0,0,0,0.1);
+        border-right: 5px solid #1e3c72;
+    }
+    
+    .att-card.status-absent { border-right-color: #dc3545; }
+    .att-card.status-excused { border-right-color: #ffc107; }
+    .att-card.status-late { border-right-color: #17a2b8; }
+    
+    .att-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+    }
+    
+    .att-card-student {
+        font-weight: bold;
+        color: #1e3c72;
+        font-size: 1.1em;
+    }
+    
+    .att-card-info {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+        margin-bottom: 12px;
+        padding: 10px;
+        background: #f8f9fa;
+        border-radius: 8px;
+        font-size: 0.9em;
+    }
+    
+    .att-card-info-item {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+    
+    .att-card-info-item i {
+        color: #6c757d;
+        width: 16px;
+    }
+    
+    .att-card-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding-top: 12px;
+        border-top: 1px solid #eee;
+    }
+    
+    .att-card-footer .btn {
+        padding: 10px 20px !important;
+        font-size: 0.9em !important;
+        border-radius: 8px !important;
+    }
+    
+    /* موبایل */
+    @media (max-width: 768px) {
+        h2 {
+            font-size: 1.2em !important;
+            margin-bottom: 15px !important;
+        }
+        
+        .mobile-filters {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .mobile-filters input[type="text"],
+        .mobile-filters select {
+            width: 100% !important;
+            max-width: 100% !important;
+            padding: 12px !important;
+            font-size: 1em !important;
+        }
+        
+        .mobile-filter-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .mobile-filter-row select {
+            flex: 1;
+        }
+        
+        .mobile-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 2px solid #dee2e6;
+        }
+        
+        .mobile-checkbox input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+        }
+        
+        .mobile-checkbox label {
+            margin: 0;
+            font-weight: 500;
+        }
+        
+        .mobile-btn-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 8px;
+        }
+        
+        .mobile-btn-row .btn {
+            padding: 12px 10px !important;
+            font-size: 0.9em !important;
+            text-align: center;
+        }
+        
+        .table-wrapper {
+            display: none !important;
+        }
+        
+        .attendance-cards-mobile {
+            display: block;
+        }
+        
+        .desktop-filters {
+            display: none !important;
+        }
+        
+    }
+    
+    @media (min-width: 769px) {
+        .mobile-filters {
+            display: none !important;
+        }
+    }
+</style>
+{% endblock %}
 
-<div class="search-box">
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;">
+    <h2 style="margin: 0;"><i class="fas fa-calendar-check"></i> لیست حضور و غیاب</h2>
+    <a href="{% url 'attendance:export_attendance_excel' %}?{% if date_filter %}date={{ date_filter }}&{% endif %}{% if class_filter %}class={{ class_filter }}&{% endif %}{% if status_filter %}status={{ status_filter }}&{% endif %}{% if absent_only %}absent_only=1{% endif %}" class="btn" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">
+        <i class="fas fa-file-excel"></i> خروجی Excel
+    </a>
+</div>
+
+<!-- فیلترهای دسکتاپ -->
+<div class="search-box desktop-filters">
     <form method="get" style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
         <input type="text" id="date-filter" value="{% if date_filter_obj %}{{ date_filter_obj|jformat:'%Y/%m/%d' }}{% else %}{{ today|jformat:'%Y/%m/%d' }}{% endif %}" placeholder="تاریخ" style="max-width: 200px; cursor: pointer; background: white;" readonly>
         <input type="hidden" name="date" id="date-filter-hidden" value="{% if date_filter %}{{ date_filter }}{% else %}{{ today_str }}{% endif %}">
-        <div style="display: flex; align-items: center; gap: 10px;">
-            <select name="status" style="max-width: 200px;">
-                <option value="">همه وضعیت‌ها</option>
+        <select name="class" style="max-width: 200px;">
+            <option value="">همه کلاس‌ها</option>
+            {% for class in classes %}
+            <option value="{{ class.id }}" {% if class_filter == class.id|stringformat:"s" %}selected{% endif %}>
+                {{ class.grade }} {{ class.name }}{% if class.teacher %} - {{ class.teacher }}{% endif %}
+            </option>
+            {% endfor %}
+        </select>
+        <select name="status" style="max-width: 200px;">
+            <option value="">همه وضعیت‌ها</option>
+            {% for value, label in status_choices %}
+            <option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
+        <label style="display: flex; align-items: center; gap: 8px; padding: 10px 15px; background: #f8f9fa; border-radius: 8px; border: 2px solid #dee2e6; cursor: pointer;">
+            <input type="checkbox" name="absent_only" value="1" {% if absent_only %}checked{% endif %} style="width: 18px; height: 18px;">
+            <span style="font-weight: 500;">فقط غایب‌ها</span>
+        </label>
+        <button type="submit" class="btn">فیلتر</button>
+        <a href="{% url 'attendance:attendance_list' %}" class="btn" style="background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%);">پاک کردن فیلتر</a>
+    </form>
+</div>
+
+<!-- فیلترهای موبایل -->
+<div class="search-box mobile-filters">
+    <form method="get">
+        <input type="text" id="date-filter-mobile" value="{% if date_filter_obj %}{{ date_filter_obj|jformat:'%Y/%m/%d' }}{% else %}{{ today|jformat:'%Y/%m/%d' }}{% endif %}" placeholder="تاریخ" style="cursor: pointer; background: white;" readonly>
+        <input type="hidden" name="date" id="date-filter-hidden-mobile" value="{% if date_filter %}{{ date_filter }}{% else %}{{ today_str }}{% endif %}">
+        
+        <div class="mobile-filter-row">
+            <select name="class">
+                <option value="">همه کلاس‌ها</option>
+                {% for class in classes %}
+                <option value="{{ class.id }}" {% if class_filter == class.id|stringformat:"s" %}selected{% endif %}>
+                    {{ class.grade }} {{ class.name }}{% if class.teacher %} - {{ class.teacher }}{% endif %}
+                </option>
+                {% endfor %}
+            </select>
+            <select name="status">
+                <option value="">همه</option>
                 {% for value, label in status_choices %}
                 <option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>{{ label }}</option>
                 {% endfor %}
             </select>
-            <label style="display: flex; align-items: center; gap: 5px; white-space: nowrap;">
-                <input type="checkbox" name="absent_only" value="1" {% if absent_only %}checked{% endif %}>
-                فقط غایب‌ها
-            </label>
         </div>
-        <button type="submit" class="btn">فیلتر</button>
-        <a href="{% url 'attendance:attendance_list' %}" class="btn">پاک کردن فیلتر</a>
-        <a href="{% url 'attendance:export_attendance_excel' %}?{% if date_filter %}date={{ date_filter }}&{% endif %}{% if status_filter %}status={{ status_filter }}&{% endif %}{% if absent_only %}absent_only=1{% endif %}" class="btn btn-success" style="background: #28a745;">
-            <i class="fas fa-file-excel"></i> خروجی Excel
-        </a>
+        
+        <div class="mobile-checkbox">
+            <input type="checkbox" name="absent_only" value="1" id="absent-only-mobile" {% if absent_only %}checked{% endif %}>
+            <label for="absent-only-mobile">فقط غایب‌ها</label>
+        </div>
+        
+        <div class="mobile-btn-row">
+            <button type="submit" class="btn">فیلتر</button>
+            <a href="{% url 'attendance:attendance_list' %}" class="btn" style="background: #6c757d;">پاک</a>
+            <a href="{% url 'attendance:export_attendance_excel' %}?{% if date_filter %}date={{ date_filter }}&{% endif %}{% if class_filter %}class={{ class_filter }}&{% endif %}{% if status_filter %}status={{ status_filter }}&{% endif %}{% if absent_only %}absent_only=1{% endif %}" class="btn" style="background: #28a745;">
+                Excel
+            </a>
+        </div>
     </form>
 </div>
 
+<!-- جدول برای دسکتاپ -->
 <div class="table-wrapper">
 <table>
     <thead>
@@ -42,7 +244,7 @@
             <th>معلم</th>
             <th>وضعیت</th>
             <th>یادداشت</th>
-            <th>پیامک ارسال شده</th>
+            <th>پیامک</th>
             <th>عملیات</th>
         </tr>
     </thead>
@@ -68,9 +270,7 @@
                 {% endif %}
             </td>
             <td>
-                {% if attendance.status == 'present' %}
-                <span class="badge badge-present">حاضر</span>
-                {% elif attendance.status == 'absent' %}
+                {% if attendance.status == 'absent' %}
                 <span class="badge badge-absent">غایب</span>
                 {% elif attendance.status == 'excused' %}
                 <span class="badge badge-excused">غایب موجه</span>
@@ -81,16 +281,20 @@
             <td>{{ attendance.notes|default:"-" }}</td>
             <td>
                 {% if attendance.sms_sent %}
-                <span class="badge badge-success">✓ بله</span>
+                <span class="badge badge-success" style="background: #28a745;">✓ بله</span>
                 {% else %}
                 <span class="badge badge-absent">✗ خیر</span>
                 {% endif %}
             </td>
             <td>
-                {% if not attendance.sms_sent and attendance.status != 'present' %}
-                <a href="{% url 'attendance:send_sms' attendance.id %}" class="btn btn-success">ارسال پیامک</a>
-                {% elif attendance.sms_sent %}
-                <a href="{% url 'attendance:send_sms' attendance.id %}?resend=1" class="btn btn-warning btn-resend" data-id="{{ attendance.id }}">ارسال مجدد</a>
+                {% if not attendance.sms_sent %}
+                <a href="{% url 'attendance:send_sms' attendance.id %}" class="btn" style="padding: 8px 15px; font-size: 0.85em; background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">
+                    <i class="fas fa-paper-plane"></i> ارسال پیامک
+                </a>
+                {% else %}
+                <a href="{% url 'attendance:send_sms' attendance.id %}?resend=1" class="btn btn-resend" style="padding: 8px 15px; font-size: 0.85em; background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%); color: #333;" data-id="{{ attendance.id }}">
+                    <i class="fas fa-redo"></i> ارسال مجدد
+                </a>
                 {% endif %}
             </td>
         </tr>
@@ -105,39 +309,94 @@
 </table>
 </div>
 
+<!-- کارت‌ها برای موبایل -->
+<div class="attendance-cards-mobile">
+    {% for attendance in attendances %}
+    <div class="att-card status-{{ attendance.status }}">
+        <div class="att-card-header">
+            <div class="att-card-student">{{ attendance.student.first_name }} {{ attendance.student.last_name }}</div>
+            {% if attendance.status == 'absent' %}
+            <span class="badge badge-absent">غایب</span>
+            {% elif attendance.status == 'excused' %}
+            <span class="badge badge-excused">غایب موجه</span>
+            {% elif attendance.status == 'late' %}
+            <span class="badge badge-late">تأخیر</span>
+            {% endif %}
+        </div>
+        
+        <div class="att-card-info">
+            <div class="att-card-info-item">
+                <i class="fas fa-calendar"></i>
+                <span>{{ attendance.date|jformat:"%Y/%m/%d" }}</span>
+            </div>
+            <div class="att-card-info-item">
+                <i class="fas fa-id-card"></i>
+                <span>{{ attendance.student.student_id }}</span>
+            </div>
+            {% if attendance.student.class_room %}
+            <div class="att-card-info-item">
+                <i class="fas fa-chalkboard"></i>
+                <span>{{ attendance.student.class_room.grade }} {{ attendance.student.class_room.name }}</span>
+            </div>
+            {% endif %}
+            {% if attendance.notes %}
+            <div class="att-card-info-item" style="width: 100%;">
+                <i class="fas fa-sticky-note"></i>
+                <span>{{ attendance.notes }}</span>
+            </div>
+            {% endif %}
+        </div>
+        
+        <div class="att-card-footer">
+            {% if attendance.sms_sent %}
+            <span style="color: #28a745; font-size: 0.9em;"><i class="fas fa-check-circle"></i> پیامک ارسال شده</span>
+            <a href="{% url 'attendance:send_sms' attendance.id %}?resend=1" class="btn btn-resend" style="background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%); color: #333;">
+                <i class="fas fa-redo"></i> ارسال مجدد
+            </a>
+            {% else %}
+            <span style="color: #dc3545; font-size: 0.9em;"><i class="fas fa-times-circle"></i> پیامک ارسال نشده</span>
+            <a href="{% url 'attendance:send_sms' attendance.id %}" class="btn" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">
+                <i class="fas fa-paper-plane"></i> ارسال پیامک
+            </a>
+            {% endif %}
+        </div>
+    </div>
+    {% empty %}
+    <div style="text-align: center; padding: 50px 20px; color: #666;">
+        <i class="fas fa-inbox" style="font-size: 3em; margin-bottom: 15px; opacity: 0.4;"></i>
+        <p style="font-size: 1.1em;">رکوردی یافت نشد.</p>
+    </div>
+    {% endfor %}
+</div>
+
 {% if attendances.has_other_pages %}
-<div class="pagination" style="margin-top: 30px; text-align: center;">
-    <div style="display: inline-block; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); padding: 20px 30px; border-radius: 12px; box-shadow: 0 3px 10px rgba(0,0,0,0.1); border: 2px solid #dee2e6;">
+<div style="margin-top: 20px;">
+    <div class="pagination-wrapper">
         {% if attendances.has_previous %}
-        <a href="?page={{ attendances.previous_page_number }}{% if date_filter %}&date={{ date_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if absent_only %}&absent_only={{ absent_only }}{% endif %}" class="btn" style="margin: 0 5px; padding: 10px 20px;">
+        <a href="?page={{ attendances.previous_page_number }}{% if date_filter %}&date={{ date_filter }}{% endif %}{% if class_filter %}&class={{ class_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if absent_only %}&absent_only={{ absent_only }}{% endif %}" class="pagination-btn">
             <i class="fas fa-chevron-right"></i> قبلی
         </a>
         {% else %}
-        <span class="btn" style="margin: 0 5px; padding: 10px 20px; opacity: 0.5; cursor: not-allowed; background: #ccc; color: #666;">
-            <i class="fas fa-chevron-right"></i> قبلی
-        </span>
+        <span class="pagination-btn disabled"><i class="fas fa-chevron-right"></i> قبلی</span>
         {% endif %}
         
-        <span style="margin: 0 20px; color: #1e3c72; font-weight: bold; font-size: 1.1em; padding: 10px 20px; background: white; border-radius: 8px; border: 2px solid #1e3c72;">
-            صفحه {{ attendances.number }} از {{ attendances.paginator.num_pages }}
-        </span>
+        <span class="pagination-current">{{ attendances.number }} / {{ attendances.paginator.num_pages }}</span>
         
         {% if attendances.has_next %}
-        <a href="?page={{ attendances.next_page_number }}{% if date_filter %}&date={{ date_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if absent_only %}&absent_only={{ absent_only }}{% endif %}" class="btn" style="margin: 0 5px; padding: 10px 20px;">
+        <a href="?page={{ attendances.next_page_number }}{% if date_filter %}&date={{ date_filter }}{% endif %}{% if class_filter %}&class={{ class_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if absent_only %}&absent_only={{ absent_only }}{% endif %}" class="pagination-btn">
             بعدی <i class="fas fa-chevron-left"></i>
         </a>
         {% else %}
-        <span class="btn" style="margin: 0 5px; padding: 10px 20px; opacity: 0.5; cursor: not-allowed; background: #ccc; color: #666;">
-            بعدی <i class="fas fa-chevron-left"></i>
-        </span>
+        <span class="pagination-btn disabled">بعدی <i class="fas fa-chevron-left"></i></span>
         {% endif %}
     </div>
+    <div class="pagination-info">{{ attendances.start_index }}-{{ attendances.end_index }} از {{ attendances.paginator.count }}</div>
 </div>
 {% endif %}
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // استفاده از تقویم ساده برای فیلتر
+    // تقویم دسکتاپ
     var dateFilterPicker = initPersianDatePicker('date-filter', {
         minYear: 1390,
         maxYear: 1410,
@@ -146,21 +405,29 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    // تنظیم مقدار اولیه - اگر فیلتر خالی است، تاریخ امروز را تنظیم کن
     var initialFilterDate = document.getElementById('date-filter-hidden').value;
     if (initialFilterDate) {
         dateFilterPicker.setValue(initialFilterDate);
-    } else {
-        // اگر فیلتر خالی است، تاریخ امروز را تنظیم کن
-        var todayDate = '{{ today_str }}';
-        if (todayDate) {
-            dateFilterPicker.setValue(todayDate);
-            document.getElementById('date-filter-hidden').value = todayDate;
+    }
+    
+    // تقویم موبایل
+    var dateFilterMobile = document.getElementById('date-filter-mobile');
+    if (dateFilterMobile) {
+        var dateFilterPickerMobile = initPersianDatePicker('date-filter-mobile', {
+            minYear: 1390,
+            maxYear: 1410,
+            onChange: function(gregorianDate) {
+                document.getElementById('date-filter-hidden-mobile').value = gregorianDate;
+            }
+        });
+        
+        var initialFilterDateMobile = document.getElementById('date-filter-hidden-mobile').value;
+        if (initialFilterDateMobile) {
+            dateFilterPickerMobile.setValue(initialFilterDateMobile);
         }
     }
 });
 
-// تأیید ارسال مجدد پیامک
 document.querySelectorAll('.btn-resend').forEach(function(btn) {
     btn.addEventListener('click', function(e) {
         e.preventDefault();
@@ -184,4 +451,3 @@ document.querySelectorAll('.btn-resend').forEach(function(btn) {
 });
 </script>
 {% endblock %}
-

@@ -349,11 +349,6 @@
             font-weight: bold;
         }
         
-        .badge-present {
-            background: #28a745;
-            color: white;
-        }
-        
         .badge-absent {
             background: #dc3545;
             color: white;
@@ -687,6 +682,86 @@
                 padding: 0 20px;
             }
         }
+        
+        /* استایل صفحه‌بندی یکپارچه */
+        .pagination-wrapper {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 6px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+        
+        .pagination-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            padding: 8px 14px;
+            font-size: 0.85em;
+            font-weight: 500;
+            color: #1e3c72;
+            background: white;
+            border: 1.5px solid #dee2e6;
+            border-radius: 8px;
+            text-decoration: none;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        
+        .pagination-btn:hover {
+            background: #1e3c72;
+            color: white;
+            border-color: #1e3c72;
+        }
+        
+        .pagination-btn.disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+        
+        .pagination-current {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 8px 16px;
+            font-size: 0.9em;
+            font-weight: bold;
+            color: white;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            border-radius: 8px;
+            min-width: 60px;
+        }
+        
+        .pagination-info {
+            text-align: center;
+            color: #666;
+            font-size: 0.8em;
+            margin-top: 8px;
+        }
+        
+        @media (max-width: 768px) {
+            .pagination-wrapper {
+                gap: 5px;
+            }
+            
+            .pagination-btn {
+                padding: 10px 14px;
+                font-size: 0.9em;
+            }
+            
+            .pagination-current {
+                padding: 10px 14px;
+                font-size: 0.95em;
+                min-width: 55px;
+            }
+            
+            .pagination-info {
+                font-size: 0.75em;
+            }
+        }
     </style>
     {% block extra_css %}{% endblock %}
 </head>
@@ -703,6 +778,7 @@
         <nav>
             <a href="{% url 'attendance:student_list' %}" class="{% if request.resolver_match.url_name == 'student_list' or request.resolver_match.url_name == 'export_students_excel' %}active{% endif %}"><i class="fas fa-list"></i> لیست دانش‌آموزان</a>
             <a href="{% url 'attendance:attendance_list' %}" class="{% if request.resolver_match.url_name == 'attendance_list' or request.resolver_match.url_name == 'export_attendance_excel' or request.resolver_match.url_name == 'send_sms' %}active{% endif %}"><i class="fas fa-calendar-check"></i> حضور و غیاب</a>
+            <a href="{% url 'attendance:statistics' %}" class="{% if request.resolver_match.url_name == 'statistics' %}active{% endif %}"><i class="fas fa-chart-bar"></i> آمار</a>
             <a href="{% url 'attendance:mark_attendance' %}" class="{% if request.resolver_match.url_name == 'mark_attendance' %}active{% endif %}"><i class="fas fa-plus-circle"></i> ثبت حضور و غیاب</a>
             {% if user.is_authenticated and user.profile.is_admin %}
             <a href="{% url 'attendance:user_list' %}" class="{% if request.resolver_match.url_name == 'user_list' or request.resolver_match.url_name == 'user_create' or request.resolver_match.url_name == 'user_edit' or request.resolver_match.url_name == 'user_delete' %}active{% endif %}"><i class="fas fa-users"></i> مدیریت کاربران</a>
@@ -727,6 +803,9 @@
             {% elif request.resolver_match.url_name == 'mark_attendance' %}
             <span>/</span>
             <span class="current">ثبت حضور و غیاب</span>
+            {% elif request.resolver_match.url_name == 'statistics' %}
+            <span>/</span>
+            <span class="current">آمار</span>
             {% elif request.resolver_match.url_name == 'user_list' or request.resolver_match.url_name == 'user_create' or request.resolver_match.url_name == 'user_edit' or request.resolver_match.url_name == 'user_delete' %}
             <span>/</span>
             <span class="current">مدیریت کاربران</span>

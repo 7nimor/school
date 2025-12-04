@@ -12,7 +12,7 @@ from datetime import date, timedelta
 from .models import Student, Attendance, Parent, UserProfile
 from .services import send_absence_sms
 from .decorators import admin_required
-from .excel import export_students_excel, export_attendance_excel
+from .excel import export_students_excel, export_attendance_excel, export_student_attendance_excel
 
 
 def login_view(request):
@@ -283,16 +283,29 @@ def student_edit(request, student_id):
 @login_required
 def attendance_list(request):
     """لیست حضور و غیاب"""
+    from .models import Class
+    
     attendances = Attendance.objects.select_related('student', 'student__parent', 'student__class_room', 'student__class_room__teacher').all()
     
-    # اگر کاربر معلم است، فقط حضور و غیاب دانش‌آموزان کلاس‌های خودش را نشان بده
     user_profile = request.user.profile
-    if user_profile.is_teacher() and user_profile.teacher:
+    is_teacher = user_profile.is_teacher()
+    
+    # اگر کاربر معلم است، فقط حضور و غیاب دانش‌آموزان کلاس‌های خودش را نشان بده
+    if is_teacher and user_profile.teacher:
         attendances = attendances.filter(student__class_room__teacher=user_profile.teacher)
+        classes = Class.objects.filter(teacher=user_profile.teacher, is_active=True)
+    else:
+        # برای مدیر و معاون، همه کلاس‌ها
+        classes = Class.objects.filter(is_active=True).select_related('teacher')
     
     # تاریخ امروز
     today = date.today()
     today_str = today.strftime('%Y-%m-%d')
+    
+    # فیلتر بر اساس کلاس (برای مدیر و معاون)
+    class_filter = request.GET.get('class', '')
+    if class_filter:
+        attendances = attendances.filter(student__class_room_id=class_filter)
     
     # فیلتر بر اساس تاریخ
     date_filter = request.GET.get('date', '')
@@ -319,7 +332,7 @@ def attendance_list(request):
     attendances = attendances.order_by('-date', '-id')
     
     # Pagination
-    paginator = Paginator(attendances, 20)  # 20 رکورد در هر صفحه
+    paginator = Paginator(attendances, 10)  # 10 رکورد در هر صفحه
     page = request.GET.get('page', 1)
     
     try:
@@ -332,12 +345,15 @@ def attendance_list(request):
     context = {
         'attendances': attendances_page,
         'date_filter': date_filter,
-        'date_filter_obj': date_filter_obj,  # date object برای استفاده در template
+        'date_filter_obj': date_filter_obj,
         'status_filter': status_filter,
         'absent_only': absent_only,
         'status_choices': Attendance.STATUS_CHOICES,
-        'today': today,  # تاریخ امروز برای پیش‌فرض تقویم
-        'today_str': today_str,  # تاریخ امروز به فرمت string برای JavaScript
+        'today': today,
+        'today_str': today_str,
+        'classes': classes,
+        'class_filter': class_filter,
+        'is_teacher': is_teacher,
     }
     return render(request, 'attendance/attendance_list.html', context)
 
@@ -356,6 +372,7 @@ def export_attendance_excel_view(request):
     
     status_filter = request.GET.get('status', '')
     absent_only = request.GET.get('absent_only', '') == '1'
+    class_filter = request.GET.get('class', '')
     
     # اگر کاربر معلم است، فقط حضور و غیاب دانش‌آموزان کلاس‌های خودش را نشان بده
     user_profile = request.user.profile
@@ -363,6 +380,10 @@ def export_attendance_excel_view(request):
         attendances_query = Attendance.objects.filter(student__class_room__teacher=user_profile.teacher)
     else:
         attendances_query = Attendance.objects.all()
+    
+    # فیلتر بر اساس کلاس
+    if class_filter:
+        attendances_query = attendances_query.filter(student__class_room_id=class_filter)
     
     return export_attendance_excel(
         attendances_query=attendances_query,
@@ -385,7 +406,7 @@ def mark_attendance(request):
         student_id = request.POST.get('student_id')
         status = request.POST.get('status')
         notes = request.POST.get('notes', '')
-        student_phone = request.POST.get('student_phone', '').strip()
+        parent_phone_input = request.POST.get('parent_phone', '').strip()
         
         # DEBUG: بررسی مقدار تاریخ دریافت شده
         print(f"DEBUG - persian_date_str: '{persian_date_str}'")
@@ -455,17 +476,18 @@ def mark_attendance(request):
             # بررسی اینکه آیا شماره تلفن اولیا وجود دارد یا نه
             parent_has_phone = student.parent and student.parent.phone_number
             
-            # اگر شماره تلفن اولیا وجود نداشت و شماره تلفن دانش‌آموز هم وارد نشده
-            if not parent_has_phone and not student_phone:
-                messages.error(request, '⚠️ شماره تلفن اولیا وجود ندارد. لطفاً شماره تلفن دانش‌آموز را وارد کنید.')
+            # اگر شماره تلفن اولیا وجود نداشت و شماره تلفن هم وارد نشده
+            if not parent_has_phone and not parent_phone_input:
+                messages.error(request, '⚠️ شماره تلفن اولیا وجود ندارد. لطفاً شماره تلفن را وارد کنید.')
                 return redirect('attendance:mark_attendance')
             
-            # ذخیره یا به‌روزرسانی شماره تلفن دانش‌آموز
-            if student_phone:
+            # ذخیره یا به‌روزرسانی شماره تلفن اولیا
+            if parent_phone_input:
                 import re
-                if re.match(r'^09\d{9}$', student_phone):
-                    student.phone_number = student_phone
-                    student.save(update_fields=['phone_number'])
+                if re.match(r'^09\d{9}$', parent_phone_input):
+                    # ذخیره شماره تلفن برای اولیا
+                    student.parent.phone_number = parent_phone_input
+                    student.parent.save(update_fields=['phone_number'])
                 else:
                     messages.error(request, 'شماره تلفن باید با فرمت 09123456789 باشد.')
                     return redirect('attendance:mark_attendance')
@@ -622,6 +644,124 @@ def send_sms_manually(request, attendance_id):
     
     return redirect('attendance:attendance_list')
 
+
+@login_required
+def student_attendance_detail(request, student_id):
+    """جزییات حضور و غیاب یک دانش‌آموز"""
+    import jdatetime
+    from collections import Counter
+    
+    user_profile = request.user.profile
+    is_teacher = user_profile.is_teacher()
+    
+    student = get_object_or_404(Student, id=student_id)
+    
+    # اگر کاربر معلم است، فقط دانش‌آموزان کلاس‌های خودش را می‌تواند ببیند
+    if is_teacher and user_profile.teacher:
+        if not student.class_room or student.class_room.teacher != user_profile.teacher:
+            messages.error(request, 'شما اجازه مشاهده این دانش‌آموز را ندارید.')
+            return redirect('attendance:student_list')
+    
+    # دریافت تمام حضور و غیاب‌های دانش‌آموز
+    attendances = Attendance.objects.filter(student=student).order_by('-date')
+    
+    # فیلتر بر اساس وضعیت
+    status_filter = request.GET.get('status', '')
+    if status_filter:
+        attendances = attendances.filter(status=status_filter)
+    
+    # آمار کلی
+    total_records = Attendance.objects.filter(student=student).count()
+    absent_count = Attendance.objects.filter(student=student, status=Attendance.ABSENT).count()
+    excused_count = Attendance.objects.filter(student=student, status=Attendance.EXCUSED).count()
+    late_count = Attendance.objects.filter(student=student, status=Attendance.LATE).count()
+    
+    # تحلیل زمانی غیبت‌ها
+    weekday_names = ['شنبه', 'یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنجشنبه', 'جمعه']
+    month_names = ['فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور', 
+                   'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند']
+    
+    # شمارش غیبت‌ها بر اساس روز هفته و ماه
+    weekday_absences = Counter()
+    month_absences = Counter()
+    
+    absent_records = Attendance.objects.filter(student=student, status=Attendance.ABSENT)
+    for record in absent_records:
+        # روز هفته (شنبه = 0)
+        jalali_date = jdatetime.date.fromgregorian(date=record.date)
+        weekday = jalali_date.weekday()  # 0 = شنبه
+        weekday_absences[weekday] += 1
+        
+        # ماه شمسی
+        month_absences[jalali_date.month - 1] += 1
+    
+    # پیدا کردن بیشترین غیبت‌ها
+    weekday_stats = []
+    for i, name in enumerate(weekday_names):
+        count = weekday_absences.get(i, 0)
+        weekday_stats.append({'name': name, 'count': count})
+    
+    month_stats = []
+    for i, name in enumerate(month_names):
+        count = month_absences.get(i, 0)
+        if count > 0:
+            month_stats.append({'name': name, 'count': count})
+    
+    # مرتب‌سازی بر اساس تعداد (نزولی)
+    month_stats.sort(key=lambda x: x['count'], reverse=True)
+    
+    # بیشترین روز غیبت
+    max_weekday_count = max([s['count'] for s in weekday_stats]) if weekday_stats else 0
+    max_weekday = [s['name'] for s in weekday_stats if s['count'] == max_weekday_count and max_weekday_count > 0]
+    
+    # Pagination
+    paginator = Paginator(attendances, 20)
+    page = request.GET.get('page', 1)
+    
+    try:
+        attendances_page = paginator.page(page)
+    except PageNotAnInteger:
+        attendances_page = paginator.page(1)
+    except EmptyPage:
+        attendances_page = paginator.page(paginator.num_pages)
+    
+    context = {
+        'student': student,
+        'attendances': attendances_page,
+        'status_filter': status_filter,
+        'status_choices': Attendance.STATUS_CHOICES,
+        'total_records': total_records,
+        'absent_count': absent_count,
+        'excused_count': excused_count,
+        'late_count': late_count,
+        'weekday_stats': weekday_stats,
+        'month_stats': month_stats[:5],  # فقط 5 ماه برتر
+        'max_weekday': max_weekday,
+    }
+    return render(request, 'attendance/student_attendance_detail.html', context)
+
+
+@login_required
+def export_student_attendance_excel_view(request, student_id):
+    """Export حضور و غیاب یک دانش‌آموز به Excel"""
+    user_profile = request.user.profile
+    is_teacher = user_profile.is_teacher()
+    
+    student = get_object_or_404(Student, id=student_id)
+    
+    # اگر کاربر معلم است، فقط دانش‌آموزان کلاس‌های خودش را می‌تواند ببیند
+    if is_teacher and user_profile.teacher:
+        if not student.class_room or student.class_room.teacher != user_profile.teacher:
+            messages.error(request, 'شما اجازه دسترسی به این دانش‌آموز را ندارید.')
+            return redirect('attendance:student_list')
+    
+    # دریافت تمام حضور و غیاب‌های دانش‌آموز
+    attendances = Attendance.objects.filter(student=student)
+    
+    # فیلتر بر اساس وضعیت
+    status_filter = request.GET.get('status', '')
+    
+    return export_student_attendance_excel(student, attendances, status_filter)
 
 
 @admin_required
@@ -851,3 +991,160 @@ def user_delete(request, user_id):
         'user_obj': user,
     }
     return render(request, 'attendance/user_confirm_delete.html', context)
+
+
+@login_required
+def statistics_view(request):
+    """صفحه آمار کلی"""
+    import jdatetime
+    from collections import Counter
+    from django.db.models import Count
+    from .models import Class
+    
+    user_profile = request.user.profile
+    is_teacher = user_profile.is_teacher()
+    
+    # دریافت بازه زمانی
+    date_from = request.GET.get('date_from', '')
+    date_to = request.GET.get('date_to', '')
+    date_from_obj = None
+    date_to_obj = None
+    
+    if date_from:
+        try:
+            date_from_obj = timezone.datetime.strptime(date_from, '%Y-%m-%d').date()
+        except ValueError:
+            pass
+    
+    if date_to:
+        try:
+            date_to_obj = timezone.datetime.strptime(date_to, '%Y-%m-%d').date()
+        except ValueError:
+            pass
+    
+    # فیلتر بر اساس نقش کاربر
+    if is_teacher and user_profile.teacher:
+        # معلم فقط کلاس‌های خودش رو می‌بینه
+        classes = Class.objects.filter(teacher=user_profile.teacher, is_active=True)
+        students = Student.objects.filter(class_room__teacher=user_profile.teacher, is_active=True)
+        absences = Attendance.objects.filter(
+            student__class_room__teacher=user_profile.teacher,
+            status=Attendance.ABSENT
+        )
+        all_attendances = Attendance.objects.filter(student__class_room__teacher=user_profile.teacher)
+    else:
+        # مدیر و معاون همه چیز رو می‌بینن
+        classes = Class.objects.filter(is_active=True)
+        students = Student.objects.filter(is_active=True)
+        absences = Attendance.objects.filter(status=Attendance.ABSENT)
+        all_attendances = Attendance.objects.all()
+    
+    # اعمال فیلتر بازه زمانی
+    if date_from_obj:
+        absences = absences.filter(date__gte=date_from_obj)
+        all_attendances = all_attendances.filter(date__gte=date_from_obj)
+    if date_to_obj:
+        absences = absences.filter(date__lte=date_to_obj)
+        all_attendances = all_attendances.filter(date__lte=date_to_obj)
+    
+    # آمار کلی
+    total_students = students.count()
+    total_absences = absences.count()
+    total_excused = all_attendances.filter(status=Attendance.EXCUSED).count()
+    total_late = all_attendances.filter(status=Attendance.LATE).count()
+    
+    # کلاس‌های با بیشترین غیبت
+    class_stats = []
+    for cls in classes.select_related('teacher'):
+        absence_count = absences.filter(student__class_room=cls).count()
+        student_count = students.filter(class_room=cls).count()
+        class_stats.append({
+            'class': cls,
+            'absence_count': absence_count,
+            'student_count': student_count,
+            'avg_per_student': round(absence_count / student_count, 1) if student_count > 0 else 0
+        })
+    class_stats.sort(key=lambda x: x['absence_count'], reverse=True)
+    
+    # دانش‌آموزان با بیشترین غیبت
+    student_absence_counts = absences.values('student').annotate(
+        count=Count('id')
+    ).order_by('-count')[:5]
+    
+    top_students = []
+    for item in student_absence_counts:
+        student = students.filter(id=item['student']).select_related('class_room').first()
+        if student:
+            top_students.append({
+                'student': student,
+                'absence_count': item['count']
+            })
+    
+    # تاریخ‌های با بیشترین غیبت
+    date_counts = Counter()
+    weekday_names = ['شنبه', 'یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنجشنبه', 'جمعه']
+    weekday_counts = Counter()
+    month_counts = Counter()
+    
+    for absence in absences:
+        date_counts[absence.date] += 1
+        jalali_date = jdatetime.date.fromgregorian(date=absence.date)
+        weekday_counts[jalali_date.weekday()] += 1
+        month_counts[jalali_date.month] += 1
+    
+    # ۱۰ تاریخ با بیشترین غیبت
+    top_dates = []
+    for d, count in date_counts.most_common(10):
+        jalali = jdatetime.date.fromgregorian(date=d)
+        top_dates.append({
+            'date': d,
+            'jalali': jalali.strftime('%Y/%m/%d'),
+            'weekday': weekday_names[jalali.weekday()],
+            'count': count
+        })
+    
+    # آمار روزهای هفته
+    weekday_stats = []
+    for i, name in enumerate(weekday_names):
+        weekday_stats.append({
+            'name': name,
+            'count': weekday_counts.get(i, 0)
+        })
+    max_weekday_count = max([w['count'] for w in weekday_stats]) if weekday_stats else 0
+    
+    # آمار ماه‌ها
+    month_names = ['فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور',
+                   'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند']
+    month_stats = []
+    for i, name in enumerate(month_names):
+        count = month_counts.get(i + 1, 0)
+        if count > 0:
+            month_stats.append({'name': name, 'count': count})
+    month_stats.sort(key=lambda x: x['count'], reverse=True)
+    
+    # تبدیل تاریخ‌ها به شمسی برای نمایش
+    date_from_jalali = None
+    date_to_jalali = None
+    if date_from_obj:
+        date_from_jalali = jdatetime.date.fromgregorian(date=date_from_obj).strftime('%Y/%m/%d')
+    if date_to_obj:
+        date_to_jalali = jdatetime.date.fromgregorian(date=date_to_obj).strftime('%Y/%m/%d')
+    
+    context = {
+        'is_teacher': is_teacher,
+        'total_students': total_students,
+        'total_absences': total_absences,
+        'total_excused': total_excused,
+        'total_late': total_late,
+        'class_stats': class_stats,
+        'top_students': top_students,
+        'top_dates': top_dates,
+        'weekday_stats': weekday_stats,
+        'max_weekday_count': max_weekday_count,
+        'month_stats': month_stats[:6],
+        'date_from': date_from,
+        'date_to': date_to,
+        'date_from_jalali': date_from_jalali,
+        'date_to_jalali': date_to_jalali,
+    }
+    return render(request, 'attendance/statistics.html', context)

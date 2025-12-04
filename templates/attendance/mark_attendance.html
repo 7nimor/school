@@ -82,9 +82,9 @@
     </div>
     
     <div class="form-group">
-        <label for="student_phone" id="student_phone_label">شماره تلفن دانش‌آموز:</label>
-        <input type="text" name="student_phone" id="student_phone" placeholder="09123456789" maxlength="11" pattern="09\d{9}">
-        <small id="student_phone_help" style="color: #666; display: block; margin-top: 5px;">در صورت وجود، شماره تلفن دانش‌آموز نمایش داده می‌شود. می‌توانید آن را ویرایش یا وارد کنید.</small>
+        <label for="parent_phone" id="parent_phone_label">شماره تلفن اولیا:</label>
+        <input type="text" name="parent_phone" id="parent_phone" placeholder="09123456789" maxlength="11" pattern="09\d{9}">
+        <small id="parent_phone_help" style="color: #666; display: block; margin-top: 5px;">شماره تلفن اولیا برای ارسال پیامک استفاده می‌شود.</small>
     </div>
     
     <div class="form-group">
@@ -126,15 +126,15 @@ document.addEventListener('DOMContentLoaded', function() {
     var teacherSelect = document.getElementById('teacher_id');
     var classSelect = document.getElementById('class_id');
     var studentSelect = document.getElementById('student_id');
-    var studentPhoneInput = document.getElementById('student_phone');
-    var studentPhoneLabel = document.getElementById('student_phone_label');
-    var studentPhoneHelp = document.getElementById('student_phone_help');
+    var parentPhoneInput = document.getElementById('parent_phone');
+    var parentPhoneLabel = document.getElementById('parent_phone_label');
+    var parentPhoneHelp = document.getElementById('parent_phone_help');
     var submitBtn = document.getElementById('submit-btn');
     var dateInput = document.getElementById('date');
     var statusSelect = document.getElementById('status');
     
     // تبدیل اعداد فارسی به انگلیسی در فیلد شماره تلفن
-    studentPhoneInput.addEventListener('input', function() {
+    parentPhoneInput.addEventListener('input', function() {
         this.value = convertPersianToEnglish(this.value);
     });
     
@@ -174,9 +174,9 @@ document.addEventListener('DOMContentLoaded', function() {
         // بررسی شماره تلفن (اگر اجباری باشد)
         var selectedOption = studentSelect.options[studentSelect.selectedIndex];
         var parentPhone = selectedOption && selectedOption.value ? selectedOption.getAttribute('data-parent-phone') : '';
-        var phoneValue = studentPhoneInput.value.trim();
+        var phoneValue = parentPhoneInput.value.trim();
         
-        // اگر شماره تلفن اولیا وجود نداشت و شماره تلفن دانش‌آموز هم وارد نشده
+        // اگر شماره تلفن اولیا وجود نداشت و شماره تلفن هم وارد نشده
         if ((!parentPhone || parentPhone.trim() === '' || parentPhone === 'null' || parentPhone === 'None') && !phoneValue) {
             isValid = false;
         }
@@ -229,11 +229,11 @@ document.addEventListener('DOMContentLoaded', function() {
         
         if (!selectedClassId) {
             studentSelect.innerHTML = '<option value="">{% if is_teacher %}ابتدا کلاس را انتخاب کنید{% else %}ابتدا معلم و کلاس را انتخاب کنید{% endif %}</option>';
-            studentPhoneInput.value = '';
-            studentPhoneInput.required = false;
-            studentPhoneLabel.innerHTML = 'شماره تلفن دانش‌آموز:';
-            studentPhoneHelp.innerHTML = 'در صورت وجود، شماره تلفن دانش‌آموز نمایش داده می‌شود. می‌توانید آن را ویرایش یا وارد کنید.';
-            studentPhoneHelp.style.color = '#666';
+            parentPhoneInput.value = '';
+            parentPhoneInput.required = false;
+            parentPhoneLabel.innerHTML = 'شماره تلفن اولیا:';
+            parentPhoneHelp.innerHTML = 'شماره تلفن اولیا برای ارسال پیامک استفاده می‌شود.';
+            parentPhoneHelp.style.color = '#666';
             checkFormValidity();
             return;
         }
@@ -258,11 +258,11 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         // ریست کردن فیلد شماره تلفن و label
-        studentPhoneInput.value = '';
-        studentPhoneInput.required = false;
-        studentPhoneLabel.innerHTML = 'شماره تلفن دانش‌آموز:';
-        studentPhoneHelp.innerHTML = 'در صورت وجود، شماره تلفن دانش‌آموز نمایش داده می‌شود. می‌توانید آن را ویرایش یا وارد کنید.';
-        studentPhoneHelp.style.color = '#666';
+        parentPhoneInput.value = '';
+        parentPhoneInput.required = false;
+        parentPhoneLabel.innerHTML = 'شماره تلفن اولیا:';
+        parentPhoneHelp.innerHTML = 'شماره تلفن اولیا برای ارسال پیامک استفاده می‌شود.';
+        parentPhoneHelp.style.color = '#666';
         
         // بررسی اعتبار فرم
         checkFormValidity();
@@ -290,11 +290,11 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!selectedTeacherId) {
             classSelect.innerHTML = '<option value="">ابتدا معلم را انتخاب کنید</option>';
             studentSelect.innerHTML = '<option value="">ابتدا معلم و کلاس را انتخاب کنید</option>';
-            studentPhoneInput.value = '';
-            studentPhoneInput.required = false;
-            studentPhoneLabel.innerHTML = 'شماره تلفن دانش‌آموز:';
-            studentPhoneHelp.innerHTML = 'در صورت وجود، شماره تلفن دانش‌آموز نمایش داده می‌شود. می‌توانید آن را ویرایش یا وارد کنید.';
-            studentPhoneHelp.style.color = '#666';
+            parentPhoneInput.value = '';
+            parentPhoneInput.required = false;
+            parentPhoneLabel.innerHTML = 'شماره تلفن اولیا:';
+            parentPhoneHelp.innerHTML = 'شماره تلفن اولیا برای ارسال پیامک استفاده می‌شود.';
+            parentPhoneHelp.style.color = '#666';
             checkFormValidity();
             return;
         }
@@ -319,11 +319,11 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // پاک کردن دانش‌آموزان
         studentSelect.innerHTML = '<option value="">ابتدا کلاس را انتخاب کنید</option>';
-        studentPhoneInput.value = '';
-        studentPhoneInput.required = false;
-        studentPhoneLabel.innerHTML = 'شماره تلفن دانش‌آموز:';
-        studentPhoneHelp.innerHTML = 'در صورت وجود، شماره تلفن دانش‌آموز نمایش داده می‌شود. می‌توانید آن را ویرایش یا وارد کنید.';
-        studentPhoneHelp.style.color = '#666';
+        parentPhoneInput.value = '';
+        parentPhoneInput.required = false;
+        parentPhoneLabel.innerHTML = 'شماره تلفن اولیا:';
+        parentPhoneHelp.innerHTML = 'شماره تلفن اولیا برای ارسال پیامک استفاده می‌شود.';
+        parentPhoneHelp.style.color = '#666';
         
         // بررسی اعتبار فرم
         checkFormValidity();
@@ -352,57 +352,46 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // تابع برای به‌روزرسانی label و required بر اساس شماره تلفن اولیا
-    function updatePhoneFieldRequirement(parentPhone, displayPhone) {
+    function updatePhoneFieldRequirement(parentPhone) {
         if (!parentPhone || parentPhone.trim() === '' || parentPhone === 'null' || parentPhone === 'None') {
             // اگر شماره تلفن اولیا وجود نداشت، فیلد را اجباری کن
-            studentPhoneInput.required = true;
-            studentPhoneInput.setAttribute('required', 'required');
-            studentPhoneLabel.innerHTML = 'شماره تلفن دانش‌آموز <span style="color: red;">*</span>';
-            studentPhoneHelp.innerHTML = '<span style="color: red; font-weight: bold;">⚠️ شماره تلفن اولیا وجود ندارد. لطفاً شماره تلفن دانش‌آموز را وارد کنید.</span>';
-            studentPhoneHelp.style.color = '#dc3545';
+            parentPhoneInput.required = true;
+            parentPhoneInput.setAttribute('required', 'required');
+            parentPhoneLabel.innerHTML = 'شماره تلفن اولیا <span style="color: red;">*</span>';
+            parentPhoneHelp.innerHTML = '<span style="color: red; font-weight: bold;">⚠️ شماره تلفن اولیا وجود ندارد. لطفاً شماره تلفن را وارد کنید تا ذخیره شود.</span>';
+            parentPhoneHelp.style.color = '#dc3545';
         } else {
             // اگر شماره تلفن اولیا وجود داشت، فیلد اختیاری است
-            studentPhoneInput.required = false;
-            studentPhoneInput.removeAttribute('required');
-            
-            // اگر شماره تلفن اولیا در فیلد نمایش داده شده است
-            if (displayPhone && displayPhone === parentPhone) {
-                studentPhoneLabel.innerHTML = 'شماره تلفن (اولیا):';
-                studentPhoneHelp.innerHTML = 'شماره تلفن اولیا نمایش داده شده است. می‌توانید آن را ویرایش یا شماره تلفن دانش‌آموز را وارد کنید.';
-            } else {
-                studentPhoneLabel.innerHTML = 'شماره تلفن دانش‌آموز:';
-                studentPhoneHelp.innerHTML = 'در صورت وجود، شماره تلفن دانش‌آموز نمایش داده می‌شود. می‌توانید آن را ویرایش یا وارد کنید.';
-            }
-            studentPhoneHelp.style.color = '#666';
+            parentPhoneInput.required = false;
+            parentPhoneInput.removeAttribute('required');
+            parentPhoneLabel.innerHTML = 'شماره تلفن اولیا:';
+            parentPhoneHelp.innerHTML = 'شماره تلفن اولیا برای ارسال پیامک استفاده می‌شود. می‌توانید آن را ویرایش کنید.';
+            parentPhoneHelp.style.color = '#666';
         }
     }
     
-    // وقتی دانش‌آموز انتخاب شد، شماره تلفنش را نمایش بده
+    // وقتی دانش‌آموز انتخاب شد، شماره تلفن اولیا را نمایش بده
     studentSelect.addEventListener('change', function() {
         var selectedOption = studentSelect.options[studentSelect.selectedIndex];
         if (selectedOption && selectedOption.value) {
-            var phone = selectedOption.getAttribute('data-phone') || '';
             var parentPhone = selectedOption.getAttribute('data-parent-phone') || '';
             
-            // اگر شماره تلفن اولیا وجود داشت، آن را نمایش بده، وگرنه شماره تلفن دانش‌آموز
-            var displayPhone = '';
+            // نمایش شماره تلفن اولیا (اگر وجود داشت)
             if (parentPhone && parentPhone.trim() !== '' && parentPhone !== 'null' && parentPhone !== 'None') {
-                displayPhone = parentPhone;
-            } else if (phone && phone.trim() !== '' && phone !== 'null' && phone !== 'None') {
-                displayPhone = phone;
+                parentPhoneInput.value = parentPhone;
+            } else {
+                parentPhoneInput.value = '';
             }
             
-            studentPhoneInput.value = displayPhone;
-            
             // به‌روزرسانی label و required
-            updatePhoneFieldRequirement(parentPhone, displayPhone);
+            updatePhoneFieldRequirement(parentPhone);
         } else {
-            studentPhoneInput.value = '';
-            studentPhoneInput.required = false;
-            studentPhoneInput.removeAttribute('required');
-            studentPhoneLabel.innerHTML = 'شماره تلفن دانش‌آموز:';
-            studentPhoneHelp.innerHTML = 'در صورت وجود، شماره تلفن دانش‌آموز نمایش داده می‌شود. می‌توانید آن را ویرایش یا وارد کنید.';
-            studentPhoneHelp.style.color = '#666';
+            parentPhoneInput.value = '';
+            parentPhoneInput.required = false;
+            parentPhoneInput.removeAttribute('required');
+            parentPhoneLabel.innerHTML = 'شماره تلفن اولیا:';
+            parentPhoneHelp.innerHTML = 'شماره تلفن اولیا برای ارسال پیامک استفاده می‌شود.';
+            parentPhoneHelp.style.color = '#666';
         }
         
         // بررسی اعتبار فرم
@@ -410,8 +399,8 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     // event listener برای تغییر شماره تلفن
-    studentPhoneInput.addEventListener('input', checkFormValidity);
-    studentPhoneInput.addEventListener('change', checkFormValidity);
+    parentPhoneInput.addEventListener('input', checkFormValidity);
+    parentPhoneInput.addEventListener('change', checkFormValidity);
     
     // event listener برای تغییر وضعیت
     statusSelect.addEventListener('change', checkFormValidity);
@@ -465,18 +454,18 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         // اعتبارسنجی شماره تلفن
-        var phone = studentPhoneInput.value.trim();
+        var phone = parentPhoneInput.value.trim();
         var selectedOption = studentSelect.options[studentSelect.selectedIndex];
-        var parentPhone = selectedOption ? selectedOption.getAttribute('data-parent-phone') : '';
+        var existingParentPhone = selectedOption ? selectedOption.getAttribute('data-parent-phone') : '';
         
-        // اگر شماره تلفن اولیا وجود نداشت و شماره تلفن دانش‌آموز هم وارد نشده
-        if ((!parentPhone || parentPhone.trim() === '') && !phone) {
+        // اگر شماره تلفن اولیا وجود نداشت و شماره تلفن هم وارد نشده
+        if ((!existingParentPhone || existingParentPhone.trim() === '') && !phone) {
             Swal.fire({
                 icon: 'warning',
                 title: 'شماره تلفن',
-                text: 'شماره تلفن اولیا وجود ندارد. لطفاً شماره تلفن دانش‌آموز را وارد کنید.'
+                text: 'شماره تلفن اولیا وجود ندارد. لطفاً شماره تلفن را وارد کنید.'
             });
-            studentPhoneInput.focus();
+            parentPhoneInput.focus();
             return false;
         }
         
@@ -487,7 +476,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 title: 'خطا',
                 text: 'شماره تلفن باید با فرمت 09123456789 باشد.'
             });
-            studentPhoneInput.focus();
+            parentPhoneInput.focus();
             return false;
         }
         

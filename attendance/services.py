@@ -91,7 +91,7 @@ def send_absence_sms(attendance, school_name=None):
     elif attendance.status == Attendance.LATE:
         status_text = "تاخیر"
     else:
-        return False  # برای حاضر پیامک ارسال نمی‌شود
+        return False  # وضعیت نامعتبر
     
     # تاریخ شمسی
     persian_date = format_persian_date(attendance.date)

@@ -1,0 +1,579 @@
+{% extends 'base.html' %}
+{% load jalali_tags %}
+
+{% block title %}جزییات - {{ student.first_name }} {{ student.last_name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* تحلیل زمانی */
+    .analysis-container {
+        background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+        border-radius: 16px;
+        padding: 20px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        border: 2px solid #e9ecef;
+        margin-bottom: 20px;
+    }
+    
+    .analysis-title {
+        color: #1e3c72;
+        font-size: 1em;
+        font-weight: bold;
+        margin-bottom: 15px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .weekday-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 8px;
+        margin-bottom: 20px;
+    }
+    
+    .weekday-item {
+        text-align: center;
+        padding: 12px 8px;
+        border-radius: 10px;
+        background: #f8f9fa;
+        border: 2px solid #e9ecef;
+        transition: all 0.2s;
+    }
+    
+    .weekday-item.has-absence {
+        background: linear-gradient(135deg, #fff5f5 0%, #ffe8e8 100%);
+        border-color: #ffcccc;
+    }
+    
+    .weekday-item.max-absence {
+        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        border-color: #dc3545;
+        color: white;
+    }
+    
+    .weekday-name {
+        font-size: 0.75em;
+        font-weight: 600;
+        margin-bottom: 4px;
+    }
+    
+    .weekday-count {
+        font-size: 1.3em;
+        font-weight: bold;
+    }
+    
+    .month-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    
+    .month-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 14px;
+        border-radius: 20px;
+        background: linear-gradient(135deg, #fff5f5 0%, #ffe8e8 100%);
+        border: 1px solid #ffcccc;
+        font-size: 0.9em;
+    }
+    
+    .month-item:first-child {
+        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        border-color: #dc3545;
+        color: white;
+    }
+    
+    .month-count {
+        font-weight: bold;
+        background: rgba(0,0,0,0.1);
+        padding: 2px 8px;
+        border-radius: 10px;
+    }
+    
+    .month-item:first-child .month-count {
+        background: rgba(255,255,255,0.2);
+    }
+    
+    .no-data {
+        text-align: center;
+        color: #999;
+        padding: 20px;
+        font-size: 0.9em;
+    }
+    
+    .insight-box {
+        background: linear-gradient(135deg, #e8f4fd 0%, #d4e8f7 100%);
+        border: 1px solid #b8daff;
+        border-radius: 10px;
+        padding: 12px 16px;
+        margin-top: 15px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 0.9em;
+        color: #1e3c72;
+    }
+    
+    .insight-box i {
+        font-size: 1.2em;
+    }
+    
+    /* کارت‌های رکورد برای موبایل */
+    .attendance-cards {
+        display: none;
+    }
+    
+    .attendance-card {
+        background: white;
+        border-radius: 12px;
+        padding: 15px;
+        margin-bottom: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        border-right: 4px solid #1e3c72;
+    }
+    
+    .attendance-card.status-absent {
+        border-right-color: #dc3545;
+    }
+    .attendance-card.status-excused {
+        border-right-color: #ffc107;
+    }
+    .attendance-card.status-late {
+        border-right-color: #17a2b8;
+    }
+    
+    .attendance-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+    
+    .attendance-card-date {
+        font-weight: bold;
+        color: #1e3c72;
+    }
+    
+    .attendance-card-body {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 0.9em;
+        color: #666;
+    }
+    
+    /* آمار فشرده موبایل */
+    .stats-compact {
+        display: none;
+        background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+        border-radius: 12px;
+        padding: 15px;
+        margin-bottom: 20px;
+        color: white;
+    }
+    
+    .stats-compact-row {
+        display: flex;
+        justify-content: space-around;
+        text-align: center;
+    }
+    
+    .stats-compact-item {
+        flex: 1;
+    }
+    
+    .stats-compact-value {
+        font-size: 1.5em;
+        font-weight: bold;
+    }
+    
+    .stats-compact-label {
+        font-size: 0.75em;
+        opacity: 0.9;
+    }
+    
+    /* استایل‌های دسکتاپ */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+    
+    .stat-card {
+        padding: 15px;
+        border-radius: 12px;
+        text-align: center;
+        color: white;
+    }
+    
+    .stat-card-value {
+        font-size: 1.8em;
+        font-weight: bold;
+    }
+    
+    .stat-card-label {
+        font-size: 0.85em;
+        opacity: 0.9;
+    }
+    
+    /* موبایل */
+    @media (max-width: 768px) {
+        h2 {
+            font-size: 1.2em !important;
+        }
+        
+        .page-header {
+            flex-direction: column;
+            gap: 10px !important;
+        }
+        
+        .page-header-buttons {
+            width: 100%;
+            display: flex;
+            gap: 8px;
+        }
+        
+        .page-header-buttons .btn {
+            flex: 1;
+            text-align: center;
+            padding: 10px !important;
+            font-size: 0.85em !important;
+        }
+        
+        .student-info-mobile {
+            padding: 15px !important;
+        }
+        
+        .student-info-mobile .info-grid {
+            grid-template-columns: 1fr 1fr !important;
+            gap: 10px !important;
+        }
+        
+        .analysis-container {
+            padding: 15px;
+        }
+        
+        .weekday-grid {
+            grid-template-columns: repeat(4, 1fr);
+            gap: 6px;
+        }
+        
+        .weekday-item {
+            padding: 10px 6px;
+        }
+        
+        .weekday-name {
+            font-size: 0.7em;
+        }
+        
+        .weekday-count {
+            font-size: 1.1em;
+        }
+        
+        .month-item {
+            font-size: 0.85em;
+            padding: 6px 12px;
+        }
+        
+        .insight-box {
+            font-size: 0.85em;
+            padding: 10px 12px;
+        }
+        
+        .stats-grid {
+            display: none !important;
+        }
+        
+        .stats-compact {
+            display: block;
+        }
+        
+        .table-wrapper {
+            display: none !important;
+        }
+        
+        .attendance-cards {
+            display: block;
+        }
+        
+        .search-box form {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        
+        .search-box select {
+            flex: 1;
+            min-width: 120px;
+        }
+        
+        .search-box .btn {
+            flex: 1;
+        }
+        
+        .pagination > div:first-child {
+            padding: 15px !important;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 8px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
+    <h2 style="margin: 0; font-size: 1.3em;">
+        <i class="fas fa-user-graduate"></i>
+        {{ student.first_name }} {{ student.last_name }}
+    </h2>
+    <div class="page-header-buttons" style="display: flex; gap: 8px;">
+        <a href="{% url 'attendance:export_student_attendance_excel' student.id %}{% if status_filter %}?status={{ status_filter }}{% endif %}" class="btn" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); padding: 8px 15px; font-size: 0.9em;">
+            <i class="fas fa-file-excel"></i> Excel
+        </a>
+        <a href="{% url 'attendance:student_list' %}" class="btn" style="background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%); padding: 8px 15px; font-size: 0.9em;">
+            <i class="fas fa-arrow-right"></i> بازگشت
+        </a>
+    </div>
+</div>
+
+<!-- اطلاعات دانش‌آموز -->
+<div class="student-info-mobile" style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); padding: 15px; border-radius: 12px; margin-bottom: 15px; border: 2px solid #dee2e6;">
+    <div class="info-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; font-size: 0.9em;">
+        <div>
+            <small style="color: #666;"><i class="fas fa-id-card"></i> شماره</small><br>
+            <strong style="color: #1e3c72;">{{ student.student_id }}</strong>
+        </div>
+        <div>
+            <small style="color: #666;"><i class="fas fa-chalkboard-teacher"></i> کلاس</small><br>
+            {% if student.class_room %}
+            <span class="badge badge-late" style="font-size: 0.85em;">{{ student.class_room.grade }} {{ student.class_room.name }}</span>
+            {% else %}
+            <span class="badge badge-absent" style="font-size: 0.85em;">-</span>
+            {% endif %}
+        </div>
+        <div>
+            <small style="color: #666;"><i class="fas fa-users"></i> اولیا</small><br>
+            <strong>{{ student.parent.first_name }} {{ student.parent.last_name }}</strong>
+        </div>
+        <div>
+            <small style="color: #666;"><i class="fas fa-phone"></i> تماس</small><br>
+            <strong style="direction: ltr; display: inline-block;">{{ student.parent.phone_number|default:"-" }}</strong>
+        </div>
+    </div>
+</div>
+
+<!-- آمار فشرده برای موبایل -->
+<div class="stats-compact">
+    <div class="stats-compact-row">
+        <div class="stats-compact-item">
+            <div class="stats-compact-value">{{ total_records }}</div>
+            <div class="stats-compact-label">کل</div>
+        </div>
+        <div class="stats-compact-item" style="color: #ff6b6b;">
+            <div class="stats-compact-value">{{ absent_count }}</div>
+            <div class="stats-compact-label">غایب</div>
+        </div>
+        <div class="stats-compact-item" style="color: #ffd93d;">
+            <div class="stats-compact-value">{{ excused_count }}</div>
+            <div class="stats-compact-label">موجه</div>
+        </div>
+        <div class="stats-compact-item" style="color: #6bcfff;">
+            <div class="stats-compact-value">{{ late_count }}</div>
+            <div class="stats-compact-label">تأخیر</div>
+        </div>
+    </div>
+</div>
+
+<!-- آمار کامل برای دسکتاپ -->
+<div class="stats-grid">
+    <div class="stat-card" style="background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);">
+        <div class="stat-card-value">{{ total_records }}</div>
+        <div class="stat-card-label">کل رکوردها</div>
+    </div>
+    <div class="stat-card" style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);">
+        <div class="stat-card-value">{{ absent_count }}</div>
+        <div class="stat-card-label">غایب</div>
+    </div>
+    <div class="stat-card" style="background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%); color: #333;">
+        <div class="stat-card-value">{{ excused_count }}</div>
+        <div class="stat-card-label">غایب موجه</div>
+    </div>
+    <div class="stat-card" style="background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);">
+        <div class="stat-card-value">{{ late_count }}</div>
+        <div class="stat-card-label">تأخیر</div>
+    </div>
+</div>
+
+<!-- تحلیل زمانی غیبت‌ها -->
+{% if absent_count > 0 %}
+<div class="analysis-container">
+    <div class="analysis-title">
+        <i class="fas fa-calendar-week"></i> تحلیل غیبت‌ها بر اساس روز هفته
+    </div>
+    <div class="weekday-grid">
+        {% for day in weekday_stats %}
+        <div class="weekday-item {% if day.count > 0 %}has-absence{% endif %} {% if day.name in max_weekday and day.count > 0 %}max-absence{% endif %}">
+            <div class="weekday-name">{{ day.name }}</div>
+            <div class="weekday-count">{{ day.count }}</div>
+        </div>
+        {% endfor %}
+    </div>
+    
+    {% if month_stats %}
+    <div class="analysis-title" style="margin-top: 20px;">
+        <i class="fas fa-calendar-alt"></i> ماه‌هایی با بیشترین غیبت
+    </div>
+    <div class="month-list">
+        {% for month in month_stats %}
+        <div class="month-item">
+            <span>{{ month.name }}</span>
+            <span class="month-count">{{ month.count }}</span>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    
+    {% if max_weekday %}
+    <div class="insight-box">
+        <i class="fas fa-lightbulb"></i>
+        <span>
+            بیشترین غیبت در روز{% if max_weekday|length > 1 %}های{% endif %} 
+            <strong>{% for day in max_weekday %}{{ day }}{% if not forloop.last %}، {% endif %}{% endfor %}</strong>
+            ثبت شده است.
+        </span>
+    </div>
+    {% endif %}
+</div>
+{% else %}
+<div class="analysis-container">
+    <div class="no-data">
+        <i class="fas fa-check-circle" style="font-size: 2em; color: #28a745; margin-bottom: 10px; display: block;"></i>
+        هیچ غیبتی ثبت نشده است! 🎉
+    </div>
+</div>
+{% endif %}
+
+<!-- فیلتر -->
+<div class="search-box" style="margin-bottom: 15px;">
+    <form method="get">
+        <select name="status" style="max-width: 200px; display: inline-block;">
+            <option value="">همه</option>
+            {% for value, label in status_choices %}
+            <option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit" class="btn">فیلتر</button>
+        {% if status_filter %}
+        <a href="{% url 'attendance:student_attendance_detail' student.id %}" class="btn" style="background: #6c757d;">پاک</a>
+        {% endif %}
+    </form>
+</div>
+
+<!-- جدول حضور و غیاب برای دسکتاپ -->
+<div class="table-wrapper">
+<table>
+    <thead>
+        <tr>
+            <th>#</th>
+            <th>تاریخ</th>
+            <th>وضعیت</th>
+            <th>یادداشت</th>
+            <th>پیامک</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for attendance in attendances %}
+        <tr>
+            <td>{{ attendances.start_index|add:forloop.counter0 }}</td>
+            <td>{{ attendance.date|jalali_date_full }}</td>
+            <td>
+                {% if attendance.status == 'absent' %}
+                <span class="badge badge-absent">غایب</span>
+                {% elif attendance.status == 'excused' %}
+                <span class="badge badge-excused">غایب موجه</span>
+                {% elif attendance.status == 'late' %}
+                <span class="badge badge-late">تأخیر</span>
+                {% endif %}
+            </td>
+            <td>{{ attendance.notes|default:"-" }}</td>
+            <td>
+                {% if attendance.sms_sent %}
+                <span style="color: #28a745;"><i class="fas fa-check"></i></span>
+                {% else %}
+                <span style="color: #dc3545;"><i class="fas fa-times"></i></span>
+                {% endif %}
+            </td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="5" style="text-align: center; padding: 30px;">
+                رکوردی یافت نشد.
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+</div>
+
+<!-- کارت‌های رکورد برای موبایل -->
+<div class="attendance-cards">
+    {% for attendance in attendances %}
+    <div class="attendance-card status-{{ attendance.status }}">
+        <div class="attendance-card-header">
+            <span class="attendance-card-date">{{ attendance.date|jalali_date_full }}</span>
+            {% if attendance.status == 'absent' %}
+            <span class="badge badge-absent">غایب</span>
+            {% elif attendance.status == 'excused' %}
+            <span class="badge badge-excused">موجه</span>
+            {% elif attendance.status == 'late' %}
+            <span class="badge badge-late">تأخیر</span>
+            {% endif %}
+        </div>
+        <div class="attendance-card-body">
+            <span>{{ attendance.notes|default:"بدون یادداشت" }}</span>
+            {% if attendance.sms_sent %}
+            <span style="color: #28a745;"><i class="fas fa-check-circle"></i> پیامک</span>
+            {% else %}
+            <span style="color: #dc3545;"><i class="fas fa-times-circle"></i> پیامک</span>
+            {% endif %}
+        </div>
+    </div>
+    {% empty %}
+    <div style="text-align: center; padding: 30px; color: #666;">
+        <i class="fas fa-inbox" style="font-size: 2em; margin-bottom: 10px; opacity: 0.5;"></i>
+        <p>رکوردی یافت نشد.</p>
+    </div>
+    {% endfor %}
+</div>
+
+{% if attendances.has_other_pages %}
+<div style="margin-top: 20px;">
+    <div class="pagination-wrapper">
+        {% if attendances.has_previous %}
+        <a href="?page={{ attendances.previous_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}" class="pagination-btn">
+            <i class="fas fa-chevron-right"></i> قبلی
+        </a>
+        {% else %}
+        <span class="pagination-btn disabled"><i class="fas fa-chevron-right"></i> قبلی</span>
+        {% endif %}
+        
+        <span class="pagination-current">{{ attendances.number }} / {{ attendances.paginator.num_pages }}</span>
+        
+        {% if attendances.has_next %}
+        <a href="?page={{ attendances.next_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}" class="pagination-btn">
+            بعدی <i class="fas fa-chevron-left"></i>
+        </a>
+        {% else %}
+        <span class="pagination-btn disabled">بعدی <i class="fas fa-chevron-left"></i></span>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}

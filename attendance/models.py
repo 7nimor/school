@@ -142,7 +142,8 @@ class Parent(models.Model):
     phone_number = models.CharField(
         validators=[phone_regex],
         max_length=11,
-        unique=True,
+        blank=True,
+        null=True,
         verbose_name='شماره تلفن'
     )
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='تاریخ ایجاد')
@@ -209,13 +210,11 @@ class Student(models.Model):
 
 class Attendance(models.Model):
     """مدل حضور و غیاب"""
-    PRESENT = 'present'
     ABSENT = 'absent'
     EXCUSED = 'excused'
     LATE = 'late'
 
     STATUS_CHOICES = [
-        (PRESENT, 'حاضر'),
         (ABSENT, 'غایب'),
         (EXCUSED, 'غایب موجه'),
         (LATE, 'تأخیر'),
@@ -231,7 +230,7 @@ class Attendance(models.Model):
     status = models.CharField(
         max_length=10,
         choices=STATUS_CHOICES,
-        default=PRESENT,
+        default=ABSENT,
         verbose_name='وضعیت'
     )
     notes = models.TextField(blank=True, null=True, verbose_name='یادداشت')

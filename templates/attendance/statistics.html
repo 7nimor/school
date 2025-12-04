@@ -1,0 +1,763 @@
+{% extends 'base.html' %}
+
+{% block title %}آمار کلی{% endblock %}
+
+{% block extra_css %}
+<style>
+    .stats-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 25px;
+        flex-wrap: wrap;
+        gap: 15px;
+    }
+    
+    .stats-header h2 {
+        margin: 0;
+    }
+    
+    /* کارت‌های آمار کلی */
+    .overview-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 15px;
+        margin-bottom: 30px;
+    }
+    
+    .overview-card {
+        padding: 20px;
+        border-radius: 14px;
+        text-align: center;
+        color: white;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    
+    .overview-card-value {
+        font-size: 2.2em;
+        font-weight: bold;
+        margin-bottom: 5px;
+    }
+    
+    .overview-card-label {
+        font-size: 0.9em;
+        opacity: 0.9;
+    }
+    
+    /* بخش‌ها */
+    .section {
+        background: white;
+        border-radius: 16px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        border: 1px solid #e9ecef;
+    }
+    
+    .section-title {
+        font-size: 1.1em;
+        font-weight: bold;
+        color: #1e3c72;
+        margin-bottom: 20px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #e9ecef;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .section-title i {
+        font-size: 1.2em;
+    }
+    
+    /* لیست کلاس‌ها */
+    .class-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .class-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 15px;
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border-radius: 10px;
+        border-right: 4px solid #1e3c72;
+    }
+    
+    .class-item:first-child {
+        border-right-color: #dc3545;
+        background: linear-gradient(135deg, #fff5f5 0%, #ffe8e8 100%);
+    }
+    
+    .class-info {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+    
+    .class-name {
+        font-weight: bold;
+        color: #1e3c72;
+    }
+    
+    .class-teacher {
+        font-size: 0.85em;
+        color: #666;
+    }
+    
+    .class-stats {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+    
+    .class-absence-count {
+        background: #dc3545;
+        color: white;
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-weight: bold;
+        font-size: 1.1em;
+    }
+    
+    .class-avg {
+        font-size: 0.85em;
+        color: #666;
+    }
+    
+    /* لیست دانش‌آموزان */
+    .student-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .student-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 15px;
+        background: #f8f9fa;
+        border-radius: 10px;
+        transition: all 0.2s;
+    }
+    
+    .student-item:hover {
+        background: #e9ecef;
+    }
+    
+    .student-item:first-child {
+        background: linear-gradient(135deg, #fff5f5 0%, #ffe8e8 100%);
+        border: 1px solid #ffcccc;
+    }
+    
+    .student-rank {
+        width: 28px;
+        height: 28px;
+        background: #1e3c72;
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.85em;
+        font-weight: bold;
+        margin-left: 12px;
+    }
+    
+    .student-item:first-child .student-rank {
+        background: #dc3545;
+    }
+    
+    .student-info {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+    
+    .student-name {
+        font-weight: 600;
+        color: #333;
+    }
+    
+    .student-class {
+        font-size: 0.8em;
+        color: #666;
+    }
+    
+    .student-absence-count {
+        background: #dc3545;
+        color: white;
+        padding: 5px 12px;
+        border-radius: 15px;
+        font-weight: bold;
+        font-size: 0.95em;
+    }
+    
+    /* تاریخ‌ها */
+    .date-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .date-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 15px;
+        background: #f8f9fa;
+        border-radius: 10px;
+    }
+    
+    .date-item:first-child {
+        background: linear-gradient(135deg, #fff5f5 0%, #ffe8e8 100%);
+        border: 1px solid #ffcccc;
+    }
+    
+    .date-info {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .date-jalali {
+        font-weight: 600;
+        color: #333;
+    }
+    
+    .date-weekday {
+        font-size: 0.85em;
+        color: #666;
+        padding: 3px 10px;
+        background: #e9ecef;
+        border-radius: 10px;
+    }
+    
+    .date-count {
+        background: #dc3545;
+        color: white;
+        padding: 5px 12px;
+        border-radius: 15px;
+        font-weight: bold;
+    }
+    
+    /* آمار روزهای هفته */
+    .weekday-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 10px;
+    }
+    
+    .weekday-item {
+        text-align: center;
+        padding: 15px 10px;
+        border-radius: 12px;
+        background: #f8f9fa;
+        border: 2px solid #e9ecef;
+        transition: all 0.2s;
+    }
+    
+    .weekday-item.has-data {
+        background: linear-gradient(135deg, #fff5f5 0%, #ffe8e8 100%);
+        border-color: #ffcccc;
+    }
+    
+    .weekday-item.max-data {
+        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        border-color: #dc3545;
+        color: white;
+    }
+    
+    .weekday-name {
+        font-size: 0.85em;
+        font-weight: 600;
+        margin-bottom: 8px;
+    }
+    
+    .weekday-count {
+        font-size: 1.5em;
+        font-weight: bold;
+    }
+    
+    /* آمار ماه‌ها */
+    .month-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    
+    .month-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 16px;
+        border-radius: 25px;
+        background: linear-gradient(135deg, #fff5f5 0%, #ffe8e8 100%);
+        border: 1px solid #ffcccc;
+    }
+    
+    .month-item:first-child {
+        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        border-color: #dc3545;
+        color: white;
+    }
+    
+    .month-count {
+        font-weight: bold;
+        background: rgba(0,0,0,0.1);
+        padding: 3px 10px;
+        border-radius: 12px;
+    }
+    
+    .month-item:first-child .month-count {
+        background: rgba(255,255,255,0.2);
+    }
+    
+    /* گرید دو ستونه */
+    .two-col-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+    }
+    
+    .no-data {
+        text-align: center;
+        color: #999;
+        padding: 30px;
+    }
+    
+    .no-data i {
+        font-size: 2.5em;
+        margin-bottom: 10px;
+        display: block;
+        opacity: 0.5;
+    }
+    
+    /* موبایل */
+    @media (max-width: 768px) {
+        .overview-grid {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+        
+        .overview-card {
+            padding: 15px;
+        }
+        
+        .overview-card-value {
+            font-size: 1.6em;
+        }
+        
+        .overview-card-label {
+            font-size: 0.8em;
+        }
+        
+        .two-col-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .weekday-grid {
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+        }
+        
+        .weekday-item {
+            padding: 12px 8px;
+        }
+        
+        .weekday-name {
+            font-size: 0.75em;
+        }
+        
+        .weekday-count {
+            font-size: 1.2em;
+        }
+        
+        .class-item {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 10px;
+        }
+        
+        .class-stats {
+            width: 100%;
+            justify-content: space-between;
+        }
+        
+        .student-item {
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        
+        .date-item {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 8px;
+        }
+        
+        .date-info {
+            flex-wrap: wrap;
+        }
+        
+        .section {
+            padding: 15px;
+        }
+        
+        .section-title {
+            font-size: 1em;
+        }
+        
+        .month-item {
+            padding: 8px 12px;
+            font-size: 0.9em;
+        }
+        
+        .date-filter-mobile {
+            display: none;
+        }
+        
+        .date-range-filter {
+            display: none;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .date-range-filter .filter-row {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        
+        .date-range-filter input {
+            flex: 1;
+            min-width: 120px;
+        }
+        
+        .date-range-filter .btn {
+            flex: 1;
+        }
+    }
+    
+    /* فیلتر بازه زمانی */
+    .date-range-box {
+        background: white;
+        border-radius: 14px;
+        padding: 20px;
+        margin-bottom: 25px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        border: 1px solid #e9ecef;
+    }
+    
+    .date-range-form {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        flex-wrap: wrap;
+    }
+    
+    .date-range-label {
+        font-weight: 600;
+        color: #1e3c72;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .date-range-inputs {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex: 1;
+    }
+    
+    .date-range-inputs input {
+        padding: 10px 15px;
+        border: 2px solid #e9ecef;
+        border-radius: 10px;
+        font-family: inherit;
+        max-width: 150px;
+        cursor: pointer;
+        background: #f8f9fa;
+        text-align: center;
+    }
+    
+    .date-range-inputs input:focus {
+        outline: none;
+        border-color: #1e3c72;
+    }
+    
+    .date-range-sep {
+        color: #666;
+        font-weight: 500;
+    }
+    
+    .date-range-btns {
+        display: flex;
+        gap: 8px;
+    }
+    
+    .active-filter-badge {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        color: white;
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 0.85em;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    @media (max-width: 768px) {
+        .date-range-form {
+            flex-direction: column;
+            align-items: stretch;
+        }
+        
+        .date-range-inputs {
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .date-range-inputs input {
+            max-width: 100%;
+            width: 100%;
+        }
+        
+        .date-range-sep {
+            display: none;
+        }
+        
+        .date-range-btns {
+            width: 100%;
+        }
+        
+        .date-range-btns .btn {
+            flex: 1;
+        }
+        
+        .active-filter-badge {
+            justify-content: center;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="stats-header">
+    <h2><i class="fas fa-chart-bar"></i> آمار کلی{% if is_teacher %} (کلاس‌های من){% endif %}</h2>
+</div>
+
+<!-- فیلتر بازه زمانی -->
+<div class="date-range-box">
+    <form method="get" class="date-range-form">
+        <span class="date-range-label">
+            <i class="fas fa-calendar-alt"></i>
+            بازه زمانی:
+        </span>
+        <div class="date-range-inputs">
+            <input type="text" id="date-from" placeholder="از تاریخ" value="{{ date_from_jalali|default:'' }}" readonly>
+            <input type="hidden" name="date_from" id="date-from-hidden" value="{{ date_from|default:'' }}">
+            <span class="date-range-sep">تا</span>
+            <input type="text" id="date-to" placeholder="تا تاریخ" value="{{ date_to_jalali|default:'' }}" readonly>
+            <input type="hidden" name="date_to" id="date-to-hidden" value="{{ date_to|default:'' }}">
+        </div>
+        <div class="date-range-btns">
+            <button type="submit" class="btn"><i class="fas fa-filter"></i> اعمال</button>
+            {% if date_from or date_to %}
+            <a href="{% url 'attendance:statistics' %}" class="btn" style="background: #6c757d;"><i class="fas fa-times"></i> پاک</a>
+            {% endif %}
+        </div>
+    </form>
+    {% if date_from_jalali or date_to_jalali %}
+    <div style="margin-top: 15px;">
+        <span class="active-filter-badge">
+            <i class="fas fa-check-circle"></i>
+            نمایش آمار {% if date_from_jalali %}از {{ date_from_jalali }}{% endif %} {% if date_to_jalali %}تا {{ date_to_jalali }}{% endif %}
+        </span>
+    </div>
+    {% endif %}
+</div>
+
+<!-- آمار کلی -->
+<div class="overview-grid">
+    <div class="overview-card" style="background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);">
+        <div class="overview-card-value">{{ total_students }}</div>
+        <div class="overview-card-label">دانش‌آموز</div>
+    </div>
+    <div class="overview-card" style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);">
+        <div class="overview-card-value">{{ total_absences }}</div>
+        <div class="overview-card-label">غیبت</div>
+    </div>
+    <div class="overview-card" style="background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%); color: #333;">
+        <div class="overview-card-value">{{ total_excused }}</div>
+        <div class="overview-card-label">غیبت موجه</div>
+    </div>
+    <div class="overview-card" style="background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);">
+        <div class="overview-card-value">{{ total_late }}</div>
+        <div class="overview-card-label">تأخیر</div>
+    </div>
+</div>
+
+<div class="two-col-grid">
+    <!-- کلاس‌های با بیشترین غیبت -->
+    <div class="section">
+        <div class="section-title">
+            <i class="fas fa-school"></i> کلاس‌ها بر اساس تعداد غیبت
+        </div>
+        {% if class_stats %}
+        <div class="class-list">
+            {% for item in class_stats %}
+            <div class="class-item">
+                <div class="class-info">
+                    <span class="class-name">{{ item.class.grade }} {{ item.class.name }}</span>
+                    {% if item.class.teacher %}
+                    <span class="class-teacher"><i class="fas fa-user"></i> {{ item.class.teacher }}</span>
+                    {% endif %}
+                </div>
+                <div class="class-stats">
+                    <span class="class-avg">{{ item.student_count }} دانش‌آموز • میانگین {{ item.avg_per_student }}</span>
+                    <span class="class-absence-count">{{ item.absence_count }}</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="no-data">
+            <i class="fas fa-school"></i>
+            کلاسی یافت نشد
+        </div>
+        {% endif %}
+    </div>
+    
+    <!-- دانش‌آموزان با بیشترین غیبت -->
+    <div class="section">
+        <div class="section-title">
+            <i class="fas fa-user-times"></i> دانش‌آموزان با بیشترین غیبت
+        </div>
+        {% if top_students %}
+        <div class="student-list">
+            {% for item in top_students %}
+            <a href="{% url 'attendance:student_attendance_detail' item.student.id %}" class="student-item" style="text-decoration: none; color: inherit;">
+                <span class="student-rank">{{ forloop.counter }}</span>
+                <div class="student-info">
+                    <span class="student-name">{{ item.student.first_name }} {{ item.student.last_name }}</span>
+                    {% if item.student.class_room %}
+                    <span class="student-class">{{ item.student.class_room.grade }} {{ item.student.class_room.name }}</span>
+                    {% endif %}
+                </div>
+                <span class="student-absence-count">{{ item.absence_count }}</span>
+            </a>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="no-data">
+            <i class="fas fa-check-circle" style="color: #28a745;"></i>
+            هیچ غیبتی ثبت نشده! 🎉
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- تحلیل زمانی -->
+<div class="section">
+    <div class="section-title">
+        <i class="fas fa-calendar-week"></i> تحلیل غیبت بر اساس روز هفته
+    </div>
+    <div class="weekday-grid">
+        {% for day in weekday_stats %}
+        <div class="weekday-item {% if day.count > 0 %}has-data{% endif %} {% if day.count == max_weekday_count and max_weekday_count > 0 %}max-data{% endif %}">
+            <div class="weekday-name">{{ day.name }}</div>
+            <div class="weekday-count">{{ day.count }}</div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="two-col-grid">
+    <!-- تاریخ‌های با بیشترین غیبت -->
+    <div class="section">
+        <div class="section-title">
+            <i class="fas fa-calendar-alt"></i> تاریخ‌های با بیشترین غیبت
+        </div>
+        {% if top_dates %}
+        <div class="date-list">
+            {% for item in top_dates %}
+            <div class="date-item">
+                <div class="date-info">
+                    <span class="date-jalali">{{ item.jalali }}</span>
+                    <span class="date-weekday">{{ item.weekday }}</span>
+                </div>
+                <span class="date-count">{{ item.count }} غیبت</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="no-data">
+            <i class="fas fa-calendar-check"></i>
+            داده‌ای یافت نشد
+        </div>
+        {% endif %}
+    </div>
+    
+    <!-- ماه‌های با بیشترین غیبت -->
+    <div class="section">
+        <div class="section-title">
+            <i class="fas fa-chart-pie"></i> ماه‌های با بیشترین غیبت
+        </div>
+        {% if month_stats %}
+        <div class="month-list">
+            {% for item in month_stats %}
+            <div class="month-item">
+                <span>{{ item.name }}</span>
+                <span class="month-count">{{ item.count }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="no-data">
+            <i class="fas fa-calendar"></i>
+            داده‌ای یافت نشد
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // تقویم شروع
+    var dateFromPicker = initPersianDatePicker('date-from', {
+        minYear: 1390,
+        maxYear: 1410,
+        onChange: function(gregorianDate) {
+            document.getElementById('date-from-hidden').value = gregorianDate;
+        }
+    });
+    
+    // تقویم پایان
+    var dateToPicker = initPersianDatePicker('date-to', {
+        minYear: 1390,
+        maxYear: 1410,
+        onChange: function(gregorianDate) {
+            document.getElementById('date-to-hidden').value = gregorianDate;
+        }
+    });
+    
+    // تنظیم مقادیر اولیه
+    var initialFromDate = document.getElementById('date-from-hidden').value;
+    if (initialFromDate) {
+        dateFromPicker.setValue(initialFromDate);
+    }
+    
+    var initialToDate = document.getElementById('date-to-hidden').value;
+    if (initialToDate) {
+        dateToPicker.setValue(initialToDate);
+    }
+});
+</script>
+{% endblock %}
+
