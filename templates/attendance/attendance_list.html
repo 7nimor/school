@@ -34,6 +34,7 @@
 <table>
     <thead>
         <tr>
+            <th>ردیف</th>
             <th>تاریخ</th>
             <th>دانش‌آموز</th>
             <th>شماره دانش‌آموزی</th>
@@ -48,6 +49,7 @@
     <tbody>
         {% for attendance in attendances %}
         <tr>
+            <td>{{ attendances.start_index|add:forloop.counter0 }}</td>
             <td>{{ attendance.date|jformat:"%Y/%m/%d" }}</td>
             <td>{{ attendance.student.first_name }} {{ attendance.student.last_name }}</td>
             <td>{{ attendance.student.student_id }}</td>
@@ -92,7 +94,7 @@
         </tr>
         {% empty %}
         <tr>
-            <td colspan="9" style="text-align: center; padding: 30px;">
+            <td colspan="10" style="text-align: center; padding: 30px;">
                 رکوردی یافت نشد.
             </td>
         </tr>

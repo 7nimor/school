@@ -7,6 +7,7 @@ from django.contrib.auth.models import User
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.db.models import Q
 from django.utils import timezone
+from django.http import JsonResponse
 from datetime import date, timedelta
 from .models import Student, Attendance, Parent, UserProfile
 from .services import send_absence_sms
@@ -314,8 +315,8 @@ def attendance_list(request):
     if absent_only:
         attendances = attendances.filter(status=Attendance.ABSENT)
     
-    # مرتب‌سازی
-    attendances = attendances.order_by('-date', 'student')
+    # مرتب‌سازی بر اساس id از آخری به اولی
+    attendances = attendances.order_by('-id')
     
     # Pagination
     paginator = Paginator(attendances, 20)  # 20 رکورد در هر صفحه
@@ -484,9 +485,23 @@ def mark_attendance(request):
                 attendance.save()
             
             # برای غیبت، تاخیر و غیبت موجه پیامک ارسال کن
-            if status in [Attendance.ABSENT, Attendance.EXCUSED, Attendance.LATE] and not attendance.sms_sent:
+            force_send = request.POST.get('force_send', '') == '1'
+            
+            if status in [Attendance.ABSENT, Attendance.EXCUSED, Attendance.LATE]:
+                if attendance.sms_sent and not force_send:
+                    # قبلاً پیامک ارسال شده، نیاز به تأیید کاربر
+                    return JsonResponse({
+                        'status': 'confirm_resend',
+                        'message': 'برای این دانش‌آموز قبلاً پیامک ارسال شده است. آیا می‌خواهید دوباره ارسال شود؟'
+                    })
+                
                 # دریافت نام مدرسه از پروفایل کاربر
                 school_name = user_profile.get_school_name() if hasattr(user_profile, 'get_school_name') else "مدرسه"
+                
+                # اگر force_send است، اول sms_sent را False کن
+                if force_send and attendance.sms_sent:
+                    attendance.sms_sent = False
+                    attendance.save(update_fields=['sms_sent'])
                 
                 # ارسال پیامک به اولیا
                 parent_sms_success = send_absence_sms(attendance, school_name)

@@ -7,11 +7,20 @@
     <title>{% block title %}سیستم حضور و غیاب{% endblock %}</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <link rel="stylesheet" href="https://unpkg.com/persian-datepicker@1.2.0/dist/css/persian-datepicker.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://unpkg.com/persian-date@1.1.0/dist/persian-date.min.js"></script>
     <script src="https://unpkg.com/persian-datepicker@1.2.0/dist/js/persian-datepicker.min.js"></script>
     <script src="{% static 'js/persian-datepicker-simple.js' %}"></script>
     <style>
+        /* حذف divider از SweetAlert */
+        .swal2-actions {
+            border-top: none !important;
+        }
+        .swal2-styled.swal2-confirm, .swal2-styled.swal2-cancel {
+            border-radius: 8px !important;
+        }
+        
         @font-face {
             font-family: 'IranYekan';
             src: url('{% static "fonts/iranyekanwebregularfanum.ttf" %}') format('truetype');
@@ -702,7 +711,7 @@
             {% endif %}
             {% if user.is_authenticated %}
             <span class="user-info"><i class="fas fa-user"></i> {% if user.get_full_name %}{{ user.get_full_name }}{% else %}{{ user.username }}{% endif %}</span>
-            <a href="{% url 'attendance:logout' %}" class="logout-btn"><i class="fas fa-sign-out-alt"></i> خروج</a>
+            <a href="#" class="logout-btn" onclick="confirmLogout(event)"><i class="fas fa-sign-out-alt"></i> خروج</a>
             {% endif %}
         </nav>
         
@@ -744,6 +753,27 @@
     <footer>
         <p class="footer-text">ساخته شده توسط <strong>نیما اورنگی</strong></p>
     </footer>
+    
+    <script>
+    function confirmLogout(event) {
+        event.preventDefault();
+        Swal.fire({
+            title: 'خروج از سیستم',
+            text: 'آیا می‌خواهید از سیستم خارج شوید؟',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#dc3545',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: '<i class="fas fa-sign-out-alt"></i> بله، خارج شو',
+            cancelButtonText: '<i class="fas fa-times"></i> انصراف',
+            reverseButtons: true
+        }).then((result) => {
+            if (result.isConfirmed) {
+                window.location.href = "{% url 'attendance:logout' %}";
+            }
+        });
+    }
+    </script>
 </body>
 </html>
 

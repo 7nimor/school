@@ -101,6 +101,8 @@
         <textarea name="notes" id="notes" rows="3"></textarea>
     </div>
     
+    <input type="hidden" name="force_send" id="force_send" value="0">
+    
     <button type="submit" class="btn" id="submit-btn" disabled>ثبت و ارسال پیامک</button>
     <a href="{% url 'attendance:attendance_list' %}" class="btn">انصراف</a>
 </form>
@@ -409,22 +411,36 @@ document.addEventListener('DOMContentLoaded', function() {
     checkFormValidity();
     
     // قبل از ارسال فرم
-    document.querySelector('form').addEventListener('submit', function(e) {
+    var form = document.querySelector('form');
+    var forceSendInput = document.getElementById('force_send');
+    
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
         if (!dateInput.value || dateInput.value.trim() === '') {
-            alert('لطفاً تاریخ را به درستی انتخاب کنید.');
-            e.preventDefault();
+            Swal.fire({
+                icon: 'error',
+                title: 'خطا',
+                text: 'لطفاً تاریخ را به درستی انتخاب کنید.'
+            });
             return false;
         }
         
         if (!classSelect.value) {
-            alert('لطفاً کلاس را انتخاب کنید.');
-            e.preventDefault();
+            Swal.fire({
+                icon: 'error',
+                title: 'خطا',
+                text: 'لطفاً کلاس را انتخاب کنید.'
+            });
             return false;
         }
         
         if (!studentSelect.value) {
-            alert('لطفاً دانش‌آموز را انتخاب کنید.');
-            e.preventDefault();
+            Swal.fire({
+                icon: 'error',
+                title: 'خطا',
+                text: 'لطفاً دانش‌آموز را انتخاب کنید.'
+            });
             return false;
         }
         
@@ -435,20 +451,81 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // اگر شماره تلفن اولیا وجود نداشت و شماره تلفن دانش‌آموز هم وارد نشده
         if ((!parentPhone || parentPhone.trim() === '') && !phone) {
-            alert('⚠️ شماره تلفن اولیا وجود ندارد. لطفاً شماره تلفن دانش‌آموز را وارد کنید.');
-            e.preventDefault();
+            Swal.fire({
+                icon: 'warning',
+                title: 'شماره تلفن',
+                text: 'شماره تلفن اولیا وجود ندارد. لطفاً شماره تلفن دانش‌آموز را وارد کنید.'
+            });
             studentPhoneInput.focus();
             return false;
         }
         
         // اعتبارسنجی فرمت شماره تلفن (اگر وارد شده)
         if (phone && !/^09\d{9}$/.test(phone)) {
-            alert('شماره تلفن باید با فرمت 09123456789 باشد.');
-            e.preventDefault();
+            Swal.fire({
+                icon: 'error',
+                title: 'خطا',
+                text: 'شماره تلفن باید با فرمت 09123456789 باشد.'
+            });
             studentPhoneInput.focus();
             return false;
         }
+        
+        // ارسال فرم با fetch
+        submitForm();
     });
+    
+    function submitForm() {
+        var formData = new FormData(form);
+        
+        fetch(form.action || window.location.href, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(function(response) {
+            var contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+                return response.json();
+            } else {
+                // اگر redirect شد، صفحه را بارگذاری کن
+                window.location.href = response.url || '{% url "attendance:attendance_list" %}';
+                return null;
+            }
+        })
+        .then(function(data) {
+            if (data && data.status === 'confirm_resend') {
+                // نمایش SweetAlert برای تأیید ارسال مجدد
+                Swal.fire({
+                    title: 'پیامک قبلاً ارسال شده',
+                    text: data.message,
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonColor: '#28a745',
+                    cancelButtonColor: '#6c757d',
+                    confirmButtonText: '<i class="fas fa-paper-plane"></i> بله، دوباره ارسال شود',
+                    cancelButtonText: '<i class="fas fa-times"></i> خیر، فقط ثبت شود',
+                    reverseButtons: true
+                }).then(function(result) {
+                    if (result.isConfirmed) {
+                        // ارسال مجدد با force_send
+                        forceSendInput.value = '1';
+                        submitForm();
+                    } else {
+                        // فقط ثبت بدون ارسال پیامک
+                        window.location.href = '{% url "attendance:attendance_list" %}';
+                    }
+                });
+            }
+        })
+        .catch(function(error) {
+            console.error('Error:', error);
+            // در صورت خطا، فرم را به صورت عادی ارسال کن
+            form.submit();
+        });
+    }
 });
 </script>
 {% endblock %}
