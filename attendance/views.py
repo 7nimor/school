@@ -535,11 +535,14 @@ def mark_attendance(request):
                     attendance.save(update_fields=['sms_sent'])
                 
                 # ارسال پیامک به اولیا
-                parent_sms_success = send_absence_sms(attendance, school_name)
-                if parent_sms_success:
-                    messages.success(request, f'حضور و غیاب ثبت شد و پیامک به اولیا ارسال شد.')
-                else:
-                    messages.success(request, 'حضور و غیاب ثبت شد. (خطا در ارسال پیامک)')
+                if not is_teacher:
+                    parent_sms_success = send_absence_sms(attendance, school_name)
+                    if parent_sms_success:
+                        messages.success(request, f'حضور و غیاب ثبت شد و پیامک به اولیا ارسال شد.')
+                    else:
+                        messages.success(request, 'حضور و غیاب ثبت شد. (خطا در ارسال پیامک)')
+                messages.success(request, 'حضور و غیاب با موفقیت ثبت شد.')
+
             else:
                 messages.success(request, 'حضور و غیاب با موفقیت ثبت شد.')
             

@@ -1,13 +1,16 @@
 """
 سرویس ارسال پیامک
 """
+from io import BytesIO
+
+import openpyxl
 import requests
 import urllib.parse
 from django.conf import settings
 from django.utils import timezone
+from django.views.decorators.csrf import csrf_exempt
 from excelstyler import shamsi_date
-from .models import Attendance
-
+from .models import Attendance, Student
 
 # تنظیمات سرویس پیامک ساهند
 SMS_USERNAME = 'hamedan'
@@ -141,3 +144,32 @@ def test_sms_simple():
             return f"خطا در ارسال پیامک: {str(e)}"
     else:
         return "شماره موبایل معتبر نیست"
+
+
+
+@csrf_exempt
+def upload_excel_file(request):
+    """
+    آپلود فایل اکسل
+    """
+    file = request.FILES['file'].read()
+    wb_obj = openpyxl.load_workbook(filename=BytesIO(file))
+    sheet = wb_obj.active
+
+    success_count = 0
+    error_list = []
+
+    for i, row in enumerate(sheet.iter_rows(values_only=True)):
+        if i == 0:
+            continue
+        try:
+            name = row[1]
+            last_name = row[2]
+
+            user = Student.objects.create(
+                first_name=name,
+                last_name=last_name
+            )
+        except:
+            pass
+    pass

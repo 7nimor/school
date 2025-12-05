@@ -178,8 +178,8 @@
             </option>
             {% endfor %}
         </select>
-        <select name="status" style="max-width: 200px;">
-            <option value="">همه وضعیت‌ها</option>
+            <select name="status" style="max-width: 200px;">
+                <option value="">همه وضعیت‌ها</option>
             {% for value, label in status_choices %}
             <option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>{{ label }}</option>
             {% endfor %}
@@ -222,7 +222,7 @@
         </div>
         
         <div class="mobile-btn-row">
-            <button type="submit" class="btn">فیلتر</button>
+        <button type="submit" class="btn">فیلتر</button>
             <a href="{% url 'attendance:attendance_list' %}" class="btn" style="background: #6c757d;">پاک</a>
             <a href="{% url 'attendance:export_attendance_excel' %}?{% if date_filter %}date={{ date_filter }}&{% endif %}{% if class_filter %}class={{ class_filter }}&{% endif %}{% if status_filter %}status={{ status_filter }}&{% endif %}{% if absent_only %}absent_only=1{% endif %}" class="btn" style="background: #28a745;">
                 Excel
@@ -287,14 +287,18 @@
                 {% endif %}
             </td>
             <td>
-                {% if not attendance.sms_sent %}
-                <a href="{% url 'attendance:send_sms' attendance.id %}" class="btn" style="padding: 8px 15px; font-size: 0.85em; background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">
-                    <i class="fas fa-paper-plane"></i> ارسال پیامک
-                </a>
+                {% if not is_teacher %}
+                    {% if not attendance.sms_sent %}
+                        <a href="{% url 'attendance:send_sms' attendance.id %}" class="btn" style="padding: 8px 15px; font-size: 0.85em; background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">
+                            <i class="fas fa-paper-plane"></i> ارسال پیامک
+                        </a>
+                    {% else %}
+                    <a href="{% url 'attendance:send_sms' attendance.id %}?resend=1" class="btn btn-resend" style="padding: 8px 15px; font-size: 0.85em; background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%); color: #333;" data-id="{{ attendance.id }}">
+                        <i class="fas fa-redo"></i> ارسال مجدد
+                    </a>
+                    {% endif %}
                 {% else %}
-                <a href="{% url 'attendance:send_sms' attendance.id %}?resend=1" class="btn btn-resend" style="padding: 8px 15px; font-size: 0.85em; background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%); color: #333;" data-id="{{ attendance.id }}">
-                    <i class="fas fa-redo"></i> ارسال مجدد
-                </a>
+                <span>-</span>
                 {% endif %}
             </td>
         </tr>

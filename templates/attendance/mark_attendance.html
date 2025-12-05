@@ -103,8 +103,11 @@
     
     <input type="hidden" name="force_send" id="force_send" value="0">
     <input type="hidden" name="attendance_id" id="attendance_id" value="">
-    
-    <button type="submit" class="btn" id="submit-btn" disabled>ثبت و ارسال پیامک</button>
+    {% if is_teacher %}
+        <button type="submit" class="btn" id="submit-btn" disabled>ثبت</button>
+    {% else %}
+        <button type="submit" class="btn" id="submit-btn" disabled>ثبت و ارسال پیامک</button>
+    {% endif %}
     <a href="{% url 'attendance:attendance_list' %}" class="btn">انصراف</a>
 </form>
 
