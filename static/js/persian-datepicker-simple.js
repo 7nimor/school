@@ -174,6 +174,7 @@ class PersianDatePicker {
             display: none;
             margin-top: 5px;
             width: 300px;
+            font-family: 'IranYekan', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         `;
         
         // ایجاد سه ستون برای روز، ماه، سال
