@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load jalali_tags %}
 
 {% block title %}لیست دانش‌آموزان{% endblock %}
 
@@ -135,9 +136,16 @@
 {% block content %}
 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;">
     <h2 style="margin: 0;">لیست دانش‌آموزان</h2>
-    <a href="{% url 'attendance:export_students_excel' %}{% if search_query %}?search={{ search_query }}{% endif %}{% if class_filter %}{% if search_query %}&{% else %}?{% endif %}class={{ class_filter }}{% endif %}" class="btn" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">
-        <i class="fas fa-file-excel"></i> خروجی Excel
-    </a>
+    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+        {% if not is_teacher %}
+        <a href="{% url 'attendance:upload_students_excel' %}" class="btn" style="background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);">
+            <i class="fas fa-upload"></i> آپلود Excel
+        </a>
+        {% endif %}
+        <a href="{% url 'attendance:export_students_excel' %}{% if search_query %}?search={{ search_query }}{% endif %}{% if class_filter %}{% if search_query %}&{% else %}?{% endif %}class={{ class_filter }}{% endif %}" class="btn" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">
+            <i class="fas fa-file-excel"></i> خروجی Excel
+        </a>
+    </div>
 </div>
 
 <div class="search-box">
@@ -164,7 +172,6 @@
     <thead>
         <tr>
             <th>ردیف</th>
-            <th>شماره دانش‌آموزی</th>
             <th>نام</th>
             <th>نام خانوادگی</th>
             <th>کلاس</th>
@@ -178,9 +185,8 @@
         {% for student in students %}
         <tr>
             <td>{{ students.start_index|add:forloop.counter0 }}</td>
-            <td>{{ student.student_id }}</td>
-            <td>{{ student.first_name }}</td>
-            <td>{{ student.last_name }}</td>
+            <td>{{ student.first_name|default_dash }}</td>
+            <td>{{ student.last_name|default_dash }}</td>
             <td>
                 {% if student.class_room %}
                 <span class="badge badge-late">{{ student.class_room.grade }} {{ student.class_room.name }}</span>
@@ -195,8 +201,8 @@
                 <span style="color: #999;">-</span>
                 {% endif %}
             </td>
-            <td>{{ student.parent.first_name }} {{ student.parent.last_name }}</td>
-            <td>{{ student.parent.phone_number }}</td>
+            <td>{{ student.parent.first_name|default_dash }} {{ student.parent.last_name|default_dash }}</td>
+            <td>{{ student.parent.phone_number|default:"-" }}</td>
             <td style="white-space: nowrap;">
                 <a href="{% url 'attendance:student_attendance_detail' student.id %}" class="btn" style="padding: 5px 12px; font-size: 0.85em; background: linear-gradient(135deg, #6f42c1 0%, #5a32a3 100%); margin-left: 5px;">
                     <i class="fas fa-list-alt"></i> جزییات
@@ -224,7 +230,6 @@
         <div class="student-card-header">
             <div>
                 <div class="student-card-name">{{ student.first_name }} {{ student.last_name }}</div>
-                <div class="student-card-id">شماره: {{ student.student_id }}</div>
             </div>
             {% if student.class_room %}
             <span class="badge badge-late">{{ student.class_room.grade }} {{ student.class_room.name }}</span>
@@ -246,7 +251,7 @@
             </div>
             <div class="student-card-item">
                 <span class="student-card-label"><i class="fas fa-users"></i> اولیا</span>
-                <span class="student-card-value">{{ student.parent.first_name }} {{ student.parent.last_name }}</span>
+                <span class="student-card-value">{{ student.parent.first_name|default_dash }} {{ student.parent.last_name|default_dash }}</span>
             </div>
             <div class="student-card-item full-width">
                 <span class="student-card-label"><i class="fas fa-phone"></i> شماره تماس اولیا</span>

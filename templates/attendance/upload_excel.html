@@ -1,0 +1,243 @@
+{% extends 'base.html' %}
+
+{% block title %}آپلود فایل اکسل{% endblock %}
+
+{% block extra_css %}
+<style>
+    .upload-container {
+        max-width: 800px;
+        margin: 30px auto;
+        padding: 30px;
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    }
+    
+    .upload-header {
+        text-align: center;
+        margin-bottom: 30px;
+        padding-bottom: 20px;
+        border-bottom: 2px solid #e9ecef;
+    }
+    
+    .upload-header h2 {
+        color: #1e3c72;
+        margin-bottom: 10px;
+    }
+    
+    .upload-form {
+        margin-top: 30px;
+    }
+    
+    .file-input-wrapper {
+        position: relative;
+        margin-bottom: 25px;
+    }
+    
+    .file-input-label {
+        display: block;
+        padding: 20px;
+        border: 3px dashed #28a745;
+        border-radius: 12px;
+        text-align: center;
+        cursor: pointer;
+        background: linear-gradient(135deg, #f8fff9 0%, #e8f5e9 100%);
+        transition: all 0.3s;
+    }
+    
+    .file-input-label:hover {
+        background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+        border-color: #20c997;
+    }
+    
+    .file-input-label i {
+        font-size: 3em;
+        color: #28a745;
+        margin-bottom: 15px;
+        display: block;
+    }
+    
+    .file-input-label span {
+        display: block;
+        font-size: 1.1em;
+        color: #1e3c72;
+        font-weight: 500;
+        margin-bottom: 8px;
+    }
+    
+    .file-input-label small {
+        display: block;
+        color: #6c757d;
+        font-size: 0.9em;
+    }
+    
+    input[type="file"] {
+        position: absolute;
+        opacity: 0;
+        width: 100%;
+        height: 100%;
+        cursor: pointer;
+    }
+    
+    .file-name {
+        margin-top: 15px;
+        padding: 12px;
+        background: #f8f9fa;
+        border-radius: 8px;
+        display: none;
+    }
+    
+    .file-name.show {
+        display: block;
+    }
+    
+    .file-name i {
+        color: #28a745;
+        margin-left: 8px;
+    }
+    
+    .instructions {
+        background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+        padding: 20px;
+        border-radius: 12px;
+        margin-bottom: 25px;
+        border-right: 4px solid #2196f3;
+    }
+    
+    .instructions h3 {
+        color: #1976d2;
+        margin-bottom: 15px;
+        font-size: 1.2em;
+    }
+    
+    .instructions ul {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+    
+    .instructions li {
+        padding: 8px 0;
+        padding-right: 25px;
+        position: relative;
+        color: #1e3c72;
+    }
+    
+    .instructions li:before {
+        content: "✓";
+        position: absolute;
+        right: 0;
+        color: #28a745;
+        font-weight: bold;
+    }
+    
+    .submit-btn {
+        width: 100%;
+        padding: 15px;
+        font-size: 1.1em;
+        margin-top: 20px;
+    }
+    
+    .back-link {
+        display: inline-block;
+        margin-top: 20px;
+        color: #6c757d;
+        text-decoration: none;
+    }
+    
+    .back-link:hover {
+        color: #1e3c72;
+    }
+    
+    @media (max-width: 768px) {
+        .upload-container {
+            margin: 15px;
+            padding: 20px;
+        }
+        
+        .upload-header h2 {
+            font-size: 1.3em;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="upload-container">
+    <div class="upload-header">
+        <h2><i class="fas fa-file-excel"></i> آپلود فایل اکسل دانش‌آموزان</h2>
+        <p style="color: #6c757d; margin-top: 10px;">آپلود فایل اکسل برای ایجاد خودکار کلاس‌ها و دانش‌آموزان</p>
+    </div>
+    
+    <div class="instructions">
+        <h3><i class="fas fa-info-circle"></i> راهنمای استفاده:</h3>
+        <ul>
+            <li>فایل اکسل باید یک شیت داشته باشد (شیت اول پردازش می‌شود)</li>
+            <li>ردیف اول فایل به عنوان هدر در نظر گرفته می‌شود (ردیف، نام، نام خانوادگی، کلاس) و نادیده گرفته می‌شود</li>
+            <li>ستون اول (A): ردیف - نادیده گرفته می‌شود</li>
+            <li>ستون دوم (B): نام دانش‌آموز</li>
+            <li>ستون سوم (C): نام خانوادگی دانش‌آموز</li>
+            <li>ستون چهارم (D): ID کلاس (عدد - باید کلاس از قبل در سیستم وجود داشته باشد)</li>
+            <li>برای هر دانش‌آموز، یک اولیا با همان نام و نام خانوادگی ایجاد می‌شود</li>
+            <li>⚠️ توجه: کلاس‌ها باید از قبل در سیستم ایجاد شده باشند</li>
+        </ul>
+    </div>
+    
+    <form method="post" enctype="multipart/form-data" class="upload-form">
+        {% csrf_token %}
+        
+        <div class="file-input-wrapper">
+            <label for="file-input" class="file-input-label">
+                <i class="fas fa-cloud-upload-alt"></i>
+                <span>فایل اکسل را انتخاب کنید</span>
+                <small>فقط فایل‌های .xlsx و .xls مجاز هستند</small>
+            </label>
+            <input type="file" id="file-input" name="file" accept=".xlsx,.xls" required>
+            <div class="file-name" id="file-name">
+                <i class="fas fa-file-excel"></i>
+                <span id="file-name-text"></span>
+            </div>
+        </div>
+        
+        <button type="submit" class="btn submit-btn" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">
+            <i class="fas fa-upload"></i> آپلود و پردازش فایل
+        </button>
+    </form>
+    
+    <a href="{% url 'attendance:student_list' %}" class="back-link">
+        <i class="fas fa-arrow-right"></i> بازگشت به لیست دانش‌آموزان
+    </a>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const fileInput = document.getElementById('file-input');
+    const fileNameDiv = document.getElementById('file-name');
+    const fileNameText = document.getElementById('file-name-text');
+    
+    fileInput.addEventListener('change', function(e) {
+        if (e.target.files.length > 0) {
+            const fileName = e.target.files[0].name;
+            fileNameText.textContent = fileName;
+            fileNameDiv.classList.add('show');
+        } else {
+            fileNameDiv.classList.remove('show');
+        }
+    });
+    
+    // نمایش پیام‌های Django
+    {% if messages %}
+        {% for message in messages %}
+            Swal.fire({
+                title: '{{ message.tags|title }}',
+                html: '{{ message|safe }}',
+                icon: '{% if message.tags == "error" %}error{% elif message.tags == "warning" %}warning{% else %}success{% endif %}',
+                confirmButtonText: 'باشه',
+                confirmButtonColor: '{% if message.tags == "error" %}#dc3545{% elif message.tags == "warning" %}#ffc107{% else %}#28a745{% endif %}'
+            });
+        {% endfor %}
+    {% endif %}
+});
+</script>
+{% endblock %}
+

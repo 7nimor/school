@@ -104,6 +104,10 @@ class Teacher(models.Model):
 
     def __str__(self):
         return f"{self.first_name} {self.last_name}"
+    
+    def get_active_classes(self):
+        """برگرداندن کلاس‌های فعال معلم"""
+        return self.classes.filter(is_active=True)
 
 
 class Class(models.Model):
@@ -161,7 +165,6 @@ class Student(models.Model):
     """مدل دانش‌آموز"""
     first_name = models.CharField(max_length=100, verbose_name='نام')
     last_name = models.CharField(max_length=100, verbose_name='نام خانوادگی')
-    student_id = models.CharField(max_length=20, unique=True, verbose_name='شماره دانش‌آموزی')
     parent = models.ForeignKey(
         Parent,
         on_delete=models.CASCADE,
@@ -205,7 +208,7 @@ class Student(models.Model):
         ordering = ['class_room__grade', 'class_room__name', 'last_name', 'first_name']
 
     def __str__(self):
-        return f"{self.first_name} {self.last_name} - {self.student_id}"
+        return f"{self.first_name} {self.last_name}"
 
 
 class Attendance(models.Model):

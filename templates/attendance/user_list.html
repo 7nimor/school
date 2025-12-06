@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% load jformat %}
+{% load jformat jalali_tags %}
 
 {% block title %}مدیریت کاربران{% endblock %}
 
@@ -242,16 +242,12 @@
     <tbody>
         {% for user in users %}
         <tr>
-            <td>{{ user.username }}</td>
+            <td>{{ user.username|default_dash }}</td>
             <td>{{ user.first_name|default:"-" }}</td>
             <td>{{ user.last_name|default:"-" }}</td>
             <td>{{ user.email|default:"-" }}</td>
             <td>
-                {% if user.profile.phone_number %}
-                    {{ user.profile.phone_number }}
-                {% else %}
-                    <span style="color: #6c757d;">-</span>
-                {% endif %}
+                {{ user.profile.phone_number|default_dash }}
             </td>
             <td>
                 {% if user.profile %}
@@ -299,9 +295,9 @@
             <div>
                 <div class="user-card-name">
                     {% if user.first_name or user.last_name %}
-                    {{ user.first_name }} {{ user.last_name }}
+                    {{ user.first_name|default_dash }} {{ user.last_name|default_dash }}
                     {% else %}
-                    {{ user.username }}
+                    {{ user.username|default_dash }}
                     {% endif %}
                 </div>
                 <div class="user-card-username">@{{ user.username }}</div>
@@ -333,7 +329,7 @@
             {% if user.email %}
             <div class="user-card-item full">
                 <span class="user-card-label"><i class="fas fa-envelope"></i> ایمیل</span>
-                <span class="user-card-value" style="direction: ltr; text-align: right;">{{ user.email }}</span>
+                <span class="user-card-value" style="direction: ltr; text-align: right;">{{ user.email|default_dash }}</span>
             </div>
             {% endif %}
             <div class="user-card-item">

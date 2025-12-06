@@ -52,3 +52,11 @@ def jalali_date_full(value):
             return str(value)
     return value
 
+
+@register.filter
+def default_dash(value):
+    """تبدیل None، null، و رشته خالی به '-'"""
+    if value is None or value == '' or str(value).lower() in ['none', 'null']:
+        return '-'
+    return value
+

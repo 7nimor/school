@@ -21,7 +21,7 @@
             <option value="">انتخاب معلم</option>
             {% for teacher in teachers %}
             <option value="{{ teacher.id }}" {% if selected_teacher_id == teacher.id|stringformat:"s" %}selected{% endif %}>
-                {{ teacher.first_name }} {{ teacher.last_name }}
+                {{ teacher.first_name }} {{ teacher.last_name }}{% with active_classes=teacher.get_active_classes %}{% if active_classes.exists %} ({% for class_obj in active_classes %}{{ class_obj.grade }} {{ class_obj.name }}{% if not forloop.last %}، {% endif %}{% endfor %}){% endif %}{% endwith %}
             </option>
             {% endfor %}
         </select>
@@ -44,7 +44,7 @@
     {% if user_teacher %}
     <div class="form-group">
         <label>معلم:</label>
-        <input type="text" value="{{ user_teacher.first_name }} {{ user_teacher.last_name }}" readonly style="background: #f5f5f5;">
+        <input type="text" value="{{ user_teacher.first_name }} {{ user_teacher.last_name }}{% with active_classes=user_teacher.get_active_classes %}{% if active_classes.exists %} ({% for class_obj in active_classes %}{{ class_obj.grade }} {{ class_obj.name }}{% if not forloop.last %}، {% endif %}{% endfor %}){% endif %}{% endwith %}" readonly style="background: #f5f5f5;">
         <input type="hidden" name="teacher_id" value="{{ user_teacher.id }}">
     </div>
     
@@ -74,7 +74,7 @@
                     data-class-id="{{ student.class_room.id|default:'' }}"
                     data-phone="{{ student.phone_number|default:'' }}"
                     data-parent-phone="{{ student.parent.phone_number|default:'' }}">
-                {{ student.first_name }} {{ student.last_name }} - {{ student.student_id }}
+                {{ student.first_name }} {{ student.last_name }}
                 {% if student.class_room %} ({{ student.class_room.grade }} {{ student.class_room.name }}){% endif %}
             </option>
             {% endfor %}

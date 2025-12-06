@@ -98,9 +98,13 @@ class Command(BaseCommand):
         
         students = []
         for student_data in students_data:
+            # حذف student_id از داده‌ها
+            student_data_clean = {k: v for k, v in student_data.items() if k != 'student_id'}
             student, created = Student.objects.get_or_create(
-                student_id=student_data['student_id'],
-                defaults=student_data
+                first_name=student_data_clean['first_name'],
+                last_name=student_data_clean['last_name'],
+                class_room=student_data_clean['class_room'],
+                defaults=student_data_clean
             )
             students.append(student)
             if created:

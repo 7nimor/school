@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% load jformat %}
+{% load jformat jalali_tags %}
 
 {% block title %}لیست حضور و غیاب{% endblock %}
 
@@ -239,7 +239,6 @@
             <th>ردیف</th>
             <th>تاریخ</th>
             <th>دانش‌آموز</th>
-            <th>شماره دانش‌آموزی</th>
             <th>کلاس</th>
             <th>معلم</th>
             <th>وضعیت</th>
@@ -253,8 +252,7 @@
         <tr>
             <td>{{ attendances.start_index|add:forloop.counter0 }}</td>
             <td>{{ attendance.date|jformat:"%Y/%m/%d" }}</td>
-            <td>{{ attendance.student.first_name }} {{ attendance.student.last_name }}</td>
-            <td>{{ attendance.student.student_id }}</td>
+            <td>{{ attendance.student.first_name|default_dash }} {{ attendance.student.last_name|default_dash }}</td>
             <td>
                 {% if attendance.student.class_room %}
                 <span class="badge badge-late">{{ attendance.student.class_room.grade }} {{ attendance.student.class_room.name }}</span>
@@ -264,7 +262,7 @@
             </td>
             <td>
                 {% if attendance.student.class_room and attendance.student.class_room.teacher %}
-                {{ attendance.student.class_room.teacher.first_name }} {{ attendance.student.class_room.teacher.last_name }}
+                {{ attendance.student.class_room.teacher.first_name|default_dash }} {{ attendance.student.class_room.teacher.last_name|default_dash }}
                 {% else %}
                 <span style="color: #999;">-</span>
                 {% endif %}
@@ -287,18 +285,25 @@
                 {% endif %}
             </td>
             <td>
-                {% if not is_teacher %}
-                    {% if not attendance.sms_sent %}
+                {% if not attendance.sms_sent %}
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        {% if not is_teacher %}
                         <a href="{% url 'attendance:send_sms' attendance.id %}" class="btn" style="padding: 8px 15px; font-size: 0.85em; background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">
                             <i class="fas fa-paper-plane"></i> ارسال پیامک
                         </a>
-                    {% else %}
+                        {% endif %}
+                        <a href="{% url 'attendance:delete_attendance' attendance.id %}" class="btn btn-delete-attendance" style="padding: 8px 15px; font-size: 0.85em; background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);" data-id="{{ attendance.id }}" data-student="{{ attendance.student.first_name }} {{ attendance.student.last_name }}">
+                            <i class="fas fa-trash"></i> حذف
+                        </a>
+                    </div>
+                {% else %}
+                    {% if not is_teacher %}
                     <a href="{% url 'attendance:send_sms' attendance.id %}?resend=1" class="btn btn-resend" style="padding: 8px 15px; font-size: 0.85em; background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%); color: #333;" data-id="{{ attendance.id }}">
                         <i class="fas fa-redo"></i> ارسال مجدد
                     </a>
+                    {% else %}
+                    <span style="color: #28a745;"><i class="fas fa-check-circle"></i> پیامک ارسال شده</span>
                     {% endif %}
-                {% else %}
-                <span>-</span>
                 {% endif %}
             </td>
         </tr>
@@ -333,10 +338,6 @@
                 <i class="fas fa-calendar"></i>
                 <span>{{ attendance.date|jformat:"%Y/%m/%d" }}</span>
             </div>
-            <div class="att-card-info-item">
-                <i class="fas fa-id-card"></i>
-                <span>{{ attendance.student.student_id }}</span>
-            </div>
             {% if attendance.student.class_room %}
             <div class="att-card-info-item">
                 <i class="fas fa-chalkboard"></i>
@@ -354,14 +355,25 @@
         <div class="att-card-footer">
             {% if attendance.sms_sent %}
             <span style="color: #28a745; font-size: 0.9em;"><i class="fas fa-check-circle"></i> پیامک ارسال شده</span>
+            {% if not is_teacher %}
             <a href="{% url 'attendance:send_sms' attendance.id %}?resend=1" class="btn btn-resend" style="background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%); color: #333;">
                 <i class="fas fa-redo"></i> ارسال مجدد
             </a>
+            {% endif %}
             {% else %}
-            <span style="color: #dc3545; font-size: 0.9em;"><i class="fas fa-times-circle"></i> پیامک ارسال نشده</span>
-            <a href="{% url 'attendance:send_sms' attendance.id %}" class="btn" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">
-                <i class="fas fa-paper-plane"></i> ارسال پیامک
-            </a>
+            <div style="display: flex; flex-direction: column; gap: 10px; width: 100%;">
+                <span style="color: #dc3545; font-size: 0.9em;"><i class="fas fa-times-circle"></i> پیامک ارسال نشده</span>
+                <div style="display: flex; gap: 8px;">
+                    {% if not is_teacher %}
+                    <a href="{% url 'attendance:send_sms' attendance.id %}" class="btn" style="flex: 1; background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">
+                        <i class="fas fa-paper-plane"></i> ارسال پیامک
+                    </a>
+                    {% endif %}
+                    <a href="{% url 'attendance:delete_attendance' attendance.id %}" class="btn btn-delete-attendance" style="flex: 1; background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);" data-id="{{ attendance.id }}" data-student="{{ attendance.student.first_name }} {{ attendance.student.last_name }}">
+                        <i class="fas fa-trash"></i> حذف
+                    </a>
+                </div>
+            </div>
             {% endif %}
         </div>
     </div>
@@ -446,6 +458,30 @@ document.querySelectorAll('.btn-resend').forEach(function(btn) {
             cancelButtonColor: '#6c757d',
             confirmButtonText: '<i class="fas fa-paper-plane"></i> بله، ارسال شود',
             cancelButtonText: '<i class="fas fa-times"></i> خیر'
+        }).then(function(result) {
+            if (result.isConfirmed) {
+                window.location.href = url;
+            }
+        });
+    });
+});
+
+// تایید حذف رکورد حضور و غیاب
+document.querySelectorAll('.btn-delete-attendance').forEach(function(btn) {
+    btn.addEventListener('click', function(e) {
+        e.preventDefault();
+        var url = this.href;
+        var studentName = this.getAttribute('data-student');
+        
+        Swal.fire({
+            title: 'حذف رکورد حضور و غیاب',
+            html: `آیا از حذف رکورد حضور و غیاب <strong>${studentName}</strong> اطمینان دارید؟<br><small style="color: #dc3545;">این عمل قابل بازگشت نیست.</small>`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#dc3545',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: '<i class="fas fa-trash"></i> بله، حذف شود',
+            cancelButtonText: '<i class="fas fa-times"></i> انصراف'
         }).then(function(result) {
             if (result.isConfirmed) {
                 window.location.href = url;

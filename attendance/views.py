@@ -8,9 +8,10 @@ from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.db.models import Q
 from django.utils import timezone
 from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
 from datetime import date, timedelta
 from .models import Student, Attendance, Parent, UserProfile
-from .services import send_absence_sms
+from .services import send_absence_sms, upload_excel_file, upload_teachers_excel
 from .decorators import admin_required
 from .excel import export_students_excel, export_attendance_excel, export_student_attendance_excel
 
@@ -98,14 +99,16 @@ def student_list(request):
     user_profile = request.user.profile
     is_teacher = user_profile.is_teacher()
     
-    # مرتب‌سازی بر اساس جدیدترین (created_at نزولی)
     students = Student.objects.filter(is_active=True).select_related('parent', 'class_room', 'class_room__teacher')
     
     # اگر کاربر معلم است، فقط دانش‌آموزان کلاس‌های خودش را نشان بده
     if is_teacher and user_profile.teacher:
         students = students.filter(class_room__teacher=user_profile.teacher)
-    
-    students = students.order_by('-created_at')
+        # برای معلم: فقط به ترتیب حروف الفبای فارسی روی نام خانوادگی
+        students = students.order_by('last_name', 'first_name')
+    else:
+        # برای مدیر و معاون: اول به ترتیب کلاس و بعد به ترتیب حروف الفبای فارسی روی نام خانوادگی
+        students = students.order_by('class_room__grade', 'class_room__name', 'last_name', 'first_name')
     
     # فیلتر بر اساس کلاس
     class_filter = request.GET.get('class', '')
@@ -117,8 +120,7 @@ def student_list(request):
     if search_query:
         students = students.filter(
             Q(first_name__icontains=search_query) |
-            Q(last_name__icontains=search_query) |
-            Q(student_id__icontains=search_query)
+            Q(last_name__icontains=search_query)
         )
     
     # Pagination
@@ -143,6 +145,7 @@ def student_list(request):
         'search_query': search_query,
         'classes': classes,
         'class_filter': class_filter,
+        'is_teacher': is_teacher,
     }
     return render(request, 'attendance/student_list.html', context)
 
@@ -189,7 +192,6 @@ def student_edit(request, student_id):
         # اطلاعات دانش‌آموز
         first_name = request.POST.get('first_name', '').strip()
         last_name = request.POST.get('last_name', '').strip()
-        student_id_field = request.POST.get('student_id', '').strip()
         class_id = request.POST.get('class_id', '')
         phone_number = request.POST.get('phone_number', '').strip()
         is_active = request.POST.get('is_active') == 'on'
@@ -203,16 +205,6 @@ def student_edit(request, student_id):
         if not first_name or not last_name:
             messages.error(request, 'نام و نام خانوادگی دانش‌آموز الزامی است.')
             return redirect('attendance:student_edit', student_id=student.id)
-        
-        if not student_id_field:
-            messages.error(request, 'شماره دانش‌آموزی الزامی است.')
-            return redirect('attendance:student_edit', student_id=student.id)
-        
-        # بررسی تکراری نبودن شماره دانش‌آموزی
-        if student_id_field != student.student_id:
-            if Student.objects.filter(student_id=student_id_field).exists():
-                messages.error(request, 'این شماره دانش‌آموزی قبلاً استفاده شده است.')
-                return redirect('attendance:student_edit', student_id=student.id)
         
         # اعتبارسنجی شماره تلفن دانش‌آموز
         if phone_number:
@@ -251,7 +243,6 @@ def student_edit(request, student_id):
             # به‌روزرسانی اطلاعات دانش‌آموز
             student.first_name = first_name
             student.last_name = last_name
-            student.student_id = student_id_field
             student.phone_number = phone_number if phone_number else None
             student.is_active = is_active
             student.updated_by = request.user  # ثبت کاربر ویرایش‌کننده
@@ -403,7 +394,7 @@ def mark_attendance(request):
     
     if request.method == 'POST':
         persian_date_str = request.POST.get('persian_date', '').strip()
-        student_id = request.POST.get('student_id')
+        student_id = request.POST.get('student_id')  # این ID دانش‌آموز است نه شماره دانش‌آموزی
         status = request.POST.get('status')
         notes = request.POST.get('notes', '')
         parent_phone_input = request.POST.get('parent_phone', '').strip()
@@ -605,7 +596,7 @@ def mark_attendance(request):
         
         students = students_query.order_by('class_room__grade', 'class_room__name', 'last_name', 'first_name')
     
-    teachers = Teacher.objects.all().order_by('last_name', 'first_name')
+    teachers = Teacher.objects.prefetch_related('classes').all().order_by('last_name', 'first_name')
     
     context = {
         'students': students,
@@ -644,6 +635,33 @@ def send_sms_manually(request, attendance_id):
             messages.error(request, 'خطا در ارسال پیامک.')
     else:
         messages.warning(request, 'این رکورد حضور است و نیازی به ارسال پیامک ندارد.')
+    
+    return redirect('attendance:attendance_list')
+
+
+@login_required
+def delete_attendance(request, attendance_id):
+    """حذف رکورد حضور و غیاب - فقط اگر پیامک ارسال نشده باشد"""
+    attendance = get_object_or_404(Attendance, id=attendance_id)
+    
+    # بررسی اینکه پیامک ارسال نشده باشد
+    if attendance.sms_sent:
+        messages.error(request, 'امکان حذف رکوردی که پیامک برای آن ارسال شده است وجود ندارد.')
+        return redirect('attendance:attendance_list')
+    
+    # بررسی دسترسی - معلم فقط می‌تواند رکوردهای کلاس خودش را حذف کند
+    user_profile = request.user.profile
+    is_teacher = user_profile.is_teacher()
+    
+    if is_teacher and user_profile.teacher:
+        if not attendance.student.class_room or attendance.student.class_room.teacher != user_profile.teacher:
+            messages.error(request, 'شما اجازه حذف این رکورد را ندارید.')
+            return redirect('attendance:attendance_list')
+    
+    # حذف رکورد
+    student_name = f"{attendance.student.first_name} {attendance.student.last_name}"
+    attendance.delete()
+    messages.success(request, f'رکورد حضور و غیاب {student_name} با موفقیت حذف شد.')
     
     return redirect('attendance:attendance_list')
 
@@ -1151,3 +1169,152 @@ def statistics_view(request):
         'date_to_jalali': date_to_jalali,
     }
     return render(request, 'attendance/statistics.html', context)
+
+
+@csrf_exempt
+def upload_students_excel(request):
+    """آپلود فایل اکسل برای ایجاد دانش‌آموزان (کلاس‌ها باید از قبل در سیستم وجود داشته باشند)"""
+    if request.method == 'POST':
+        if 'file' not in request.FILES:
+            messages.error(request, 'لطفاً یک فایل اکسل انتخاب کنید.')
+            return render(request, 'attendance/upload_excel.html')
+        
+        # بررسی نوع فایل
+        uploaded_file = request.FILES['file']
+        if not uploaded_file.name.endswith(('.xlsx', '.xls')):
+            messages.error(request, 'فقط فایل‌های اکسل (.xlsx, .xls) مجاز هستند.')
+            return render(request, 'attendance/upload_excel.html')
+        
+        # پردازش فایل
+        try:
+            result = upload_excel_file(request)
+            
+            if result['success']:
+                success_msg = (
+                    f"✅ فایل با موفقیت پردازش شد!\n"
+                    f"👨‍🎓 دانش‌آموزان ایجاد شده: {result['created_students']}\n"
+                    f"👨‍👩‍👧 اولیا ایجاد شده: {result['created_parents']}"
+                )
+                messages.success(request, success_msg)
+                
+                if result['errors']:
+                    error_msg = f"⚠️ خطاها ({len(result['errors'])} مورد):\n" + "\n".join(result['errors'][:10])
+                    if len(result['errors']) > 10:
+                        error_msg += f"\n... و {len(result['errors']) - 10} خطای دیگر"
+                    messages.warning(request, error_msg)
+            else:
+                messages.error(request, result.get('message', 'خطا در پردازش فایل.'))
+                if result.get('errors'):
+                    messages.error(request, "\n".join(result['errors'][:5]))
+        
+        except Exception as e:
+            messages.error(request, f'خطا در پردازش فایل: {str(e)}')
+        
+        return redirect('attendance:upload_students_excel')
+    
+    return render(request, 'attendance/upload_excel.html')
+
+
+@csrf_exempt
+def upload_teachers_excel_view(request):
+    """آپلود فایل اکسل برای ایجاد معلمان و کاربران"""
+    if request.method == 'POST':
+        if 'file' not in request.FILES:
+            messages.error(request, 'لطفاً یک فایل اکسل انتخاب کنید.')
+            return render(request, 'attendance/upload_teachers_excel.html')
+        
+        # بررسی نوع فایل
+        uploaded_file = request.FILES['file']
+        if not uploaded_file.name.endswith(('.xlsx', '.xls')):
+            messages.error(request, 'فقط فایل‌های اکسل (.xlsx, .xls) مجاز هستند.')
+            return render(request, 'attendance/upload_teachers_excel.html')
+        
+        # پردازش فایل
+        try:
+            result = upload_teachers_excel(request)
+            
+            if result['success']:
+                success_msg = (
+                    f"✅ فایل با موفقیت پردازش شد!\n"
+                    f"👨‍🏫 معلمان ایجاد شده: {result['created_teachers']}\n"
+                    f"👤 کاربران ایجاد شده: {result['created_users']}"
+                )
+                messages.success(request, success_msg)
+                
+                if result['errors']:
+                    error_msg = f"⚠️ خطاها ({len(result['errors'])} مورد):\n" + "\n".join(result['errors'][:10])
+                    if len(result['errors']) > 10:
+                        error_msg += f"\n... و {len(result['errors']) - 10} خطای دیگر"
+                    messages.warning(request, error_msg)
+            else:
+                messages.error(request, result.get('message', 'خطا در پردازش فایل.'))
+                if result.get('errors'):
+                    messages.error(request, "\n".join(result['errors'][:5]))
+        
+        except Exception as e:
+            messages.error(request, f'خطا در پردازش فایل: {str(e)}')
+        
+        return redirect('attendance:upload_teachers_excel')
+    
+    return render(request, 'attendance/upload_teachers_excel.html')
+
+
+@login_required
+def user_profile(request):
+    """صفحه پروفایل کاربر - تغییر نام کاربری و رمز عبور"""
+    user = request.user
+    
+    if request.method == 'POST':
+        username = request.POST.get('username', '').strip()
+        current_password = request.POST.get('current_password', '').strip()
+        new_password1 = request.POST.get('new_password1', '').strip()
+        new_password2 = request.POST.get('new_password2', '').strip()
+        
+        # بررسی نام کاربری
+        if not username:
+            messages.error(request, 'نام کاربری الزامی است.')
+            return render(request, 'attendance/user_profile.html', {'user_obj': user})
+        
+        # اگر نام کاربری تغییر کرده
+        if username != user.username:
+            # بررسی تکراری نبودن نام کاربری
+            if User.objects.filter(username=username).exists():
+                messages.error(request, 'این نام کاربری قبلاً استفاده شده است.')
+                return render(request, 'attendance/user_profile.html', {'user_obj': user})
+            user.username = username
+            user.save()
+            messages.success(request, 'نام کاربری با موفقیت تغییر کرد.')
+        
+        # اگر رمز عبور جدید وارد شده
+        if new_password1 or new_password2:
+            # بررسی اینکه رمز عبور فعلی وارد شده باشد
+            if not current_password:
+                messages.error(request, 'برای تغییر رمز عبور، باید رمز عبور فعلی را وارد کنید.')
+                return render(request, 'attendance/user_profile.html', {'user_obj': user})
+            
+            # بررسی صحت رمز عبور فعلی
+            if not user.check_password(current_password):
+                messages.error(request, 'رمز عبور فعلی اشتباه است.')
+                return render(request, 'attendance/user_profile.html', {'user_obj': user})
+            
+            # بررسی اینکه رمز عبور جدید و تکرار آن یکسان باشند
+            if new_password1 != new_password2:
+                messages.error(request, 'رمز عبور جدید و تکرار آن باید یکسان باشند.')
+                return render(request, 'attendance/user_profile.html', {'user_obj': user})
+            
+            # بررسی طول رمز عبور
+            if len(new_password1) < 8:
+                messages.error(request, 'رمز عبور باید حداقل 8 کاراکتر باشد.')
+                return render(request, 'attendance/user_profile.html', {'user_obj': user})
+            
+            # تغییر رمز عبور
+            user.set_password(new_password1)
+            user.save()
+            messages.success(request, 'رمز عبور با موفقیت تغییر کرد.')
+        
+        return redirect('attendance:user_profile')
+    
+    context = {
+        'user_obj': user,
+    }
+    return render(request, 'attendance/user_profile.html', context)

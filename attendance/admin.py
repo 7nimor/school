@@ -169,8 +169,8 @@ class ParentAdmin(RestrictedAdminMixin, admin.ModelAdmin):
 
 @admin.register(Student)
 class StudentAdmin(RestrictedAdminMixin, admin.ModelAdmin):
-    list_display = ['first_name', 'last_name', 'student_id', 'class_room', 'parent', 'is_active']
-    search_fields = ['first_name', 'last_name', 'student_id']
+    list_display = ['first_name', 'last_name', 'class_room', 'parent', 'is_active']
+    search_fields = ['first_name', 'last_name']
     list_filter = ['is_active', 'class_room', 'parent']
     raw_id_fields = ['parent', 'class_room']
 
@@ -179,6 +179,6 @@ class StudentAdmin(RestrictedAdminMixin, admin.ModelAdmin):
 class AttendanceAdmin(RestrictedAdminMixin, admin.ModelAdmin):
     list_display = ['student', 'date', 'status', 'sms_sent', 'created_at']
     list_filter = ['status', 'date', 'sms_sent']
-    search_fields = ['student__first_name', 'student__last_name', 'student__student_id']
+    search_fields = ['student__first_name', 'student__last_name']
     date_hierarchy = 'date'
     raw_id_fields = ['student']

@@ -30,8 +30,7 @@ def export_students_excel(students_query, class_filter='', search_query=''):
     if search_query:
         students = students.filter(
             Q(first_name__icontains=search_query) |
-            Q(last_name__icontains=search_query) |
-            Q(student_id__icontains=search_query)
+            Q(last_name__icontains=search_query)
         )
     
     # آمار کلی
@@ -68,7 +67,6 @@ def export_students_excel(students_query, class_filter='', search_query=''):
     # هدرهای جدول اصلی
     excel_options = [
         'ردیف',
-        'شماره دانش‌آموزی',
         'نام',
         'نام خانوادگی',
         'کلاس',
@@ -101,7 +99,6 @@ def export_students_excel(students_query, class_filter='', search_query=''):
         
         list1 = [
             m,
-            student.student_id if student.student_id else '-',
             student.first_name if student.first_name else '-',
             student.last_name if student.last_name else '-',
             class_name,
@@ -122,6 +119,7 @@ def export_students_excel(students_query, class_filter='', search_query=''):
     # ردیف مجموع
     list2 = [
         'مجموع==>',
+        '',
         '',
         '',
         '',
@@ -220,7 +218,6 @@ def export_attendance_excel(attendances_query, date_filter=None, status_filter='
         'تاریخ',
         'نام دانش‌آموز',
         'نام خانوادگی دانش‌آموز',
-        'شماره دانش‌آموزی',
         'کلاس',
         'پایه',
         'معلم',
@@ -261,7 +258,6 @@ def export_attendance_excel(attendances_query, date_filter=None, status_filter='
             date_shamsi,
             attendance.student.first_name if attendance.student.first_name else '-',
             attendance.student.last_name if attendance.student.last_name else '-',
-            attendance.student.student_id if attendance.student.student_id else '-',
             class_name,
             grade,
             teacher_name,
@@ -343,7 +339,6 @@ def export_student_attendance_excel(student, attendances_query, status_filter=''
     
     # اطلاعات دانش‌آموز
     student_info = [
-        'شماره دانش‌آموزی',
         'کلاس',
         'معلم',
         'اولیا',
@@ -357,7 +352,6 @@ def export_student_attendance_excel(student, attendances_query, status_filter=''
     parent_phone = student.parent.phone_number if student.parent else '-'
     
     student_values = [
-        student.student_id,
         class_name,
         teacher_name,
         parent_name,

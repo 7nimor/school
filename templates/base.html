@@ -795,7 +795,7 @@
             <span class="nav-separator"></span>
             {% endif %}
             {% if user.is_authenticated %}
-            <span class="user-info"><i class="fas fa-user"></i> {% if user.get_full_name %}{{ user.get_full_name }}{% else %}{{ user.username }}{% endif %}</span>
+            <a href="{% url 'attendance:user_profile' %}" class="user-info" style="text-decoration: none; color: inherit; cursor: pointer;"><i class="fas fa-user"></i> {% if user.get_full_name %}{{ user.get_full_name }}{% else %}{{ user.username }}{% endif %}</a>
             <a href="#" class="logout-btn" onclick="confirmLogout(event)"><i class="fas fa-sign-out-alt"></i> خروج</a>
             {% endif %}
         </nav>
