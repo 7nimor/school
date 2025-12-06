@@ -77,12 +77,18 @@ DATABASE_URL = config('DATABASE_URL', default='')
 
 if DATABASE_URL:
     # استفاده از PostgreSQL (Neon, Supabase, etc.)
+    db_config = dj_database_url.parse(
+        DATABASE_URL,
+        conn_max_age=600,
+        conn_health_checks=True,
+    )
+    # برای لیارا، SSL را تنظیم می‌کنیم
+    if 'apo.liara.cloud' in DATABASE_URL:
+        db_config['OPTIONS'] = {
+            'sslmode': 'prefer',
+        }
     DATABASES = {
-        'default': dj_database_url.parse(
-            DATABASE_URL,
-            conn_max_age=600,
-            conn_health_checks=True,
-        )
+        'default': db_config
     }
 else:
     # استفاده از SQLite برای توسعه محلی

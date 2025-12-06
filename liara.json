@@ -1,6 +1,7 @@
 {
   "platform": "django",
   "app": "attendance-system",
+  "settings": "attendance_system.settings",
   "build": {
     "commands": [
       "pip install --upgrade pip setuptools wheel",
@@ -10,6 +11,9 @@
   },
   "deploy": {
     "start": "gunicorn attendance_system.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120"
+  },
+  "env": {
+    "DATABASE_URL": "postgresql://root:T7XfIPAcCii9z96VzkpLJ8mQ@apo.liara.cloud:33022/postgres"
   }
 }
 
